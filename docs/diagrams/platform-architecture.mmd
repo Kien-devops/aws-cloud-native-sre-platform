@@ -1,0 +1,25 @@
+flowchart TD
+  C[Client / k6] --> DNS[Route 53]
+  DNS --> ALB[ALB + WAF]
+  ALB --> API[API Gateway trên EKS]
+  API --> AUTH[Auth service]
+  API --> ORD[Order service]
+  ORD --> INV[Inventory service]
+  ORD --> RDS[(RDS PostgreSQL)]
+  ORD --> REDIS[(ElastiCache Redis)]
+  ORD --> SQS[[SQS queue]]
+  SQS --> PAY[Payment worker]
+  AUTH --> OTEL[OpenTelemetry SDK]
+  ORD --> OTEL
+  INV --> OTEL
+  PAY --> OTEL
+  OTEL --> COL[OTel Collector]
+  COL --> PROM[Metrics Prometheus]
+  COL --> LOKI[Loki logs]
+  COL --> TEMPO[Tempo traces]
+  PROM --> GRAF[Grafana]
+  LOKI --> GRAF
+  TEMPO --> GRAF
+  PROM --> ALERT[SLO và alert rules]
+  ALERT --> AM[Alertmanager]
+  AM --> IR[Xử lý sự cố]

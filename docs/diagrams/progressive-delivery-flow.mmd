@@ -1,0 +1,13 @@
+flowchart TD
+  COMMIT[App commit] --> TEST[Unit, integration và security tests]
+  TEST --> BUILD[Build và push image bất biến vào ECR]
+  BUILD --> PR[Cập nhật desired state GitOps]
+  PR --> ARGO[Argo CD sync]
+  ARGO --> ROLL[Argo Rollouts canary]
+  ROLL --> MET[Phân tích metrics Prometheus]
+  MET --> GOOD{Metrics đạt policy?}
+  GOOD -->|Có| NEXT{Còn bước canary?}
+  NEXT -->|Có| ROLL
+  NEXT -->|Không| PROMOTE[Promote bản ổn định]
+  GOOD -->|Không| ABORT[Abort và rollback traffic]
+  ABORT --> VERIFY[Xác minh SLI client và mở incident]
