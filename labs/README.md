@@ -1,37 +1,73 @@
 # Labs triển khai AWS Cloud-Native SRE Platform
 
-Chuỗi lab này dựng môi trường `dev` từ đầu đến khi đủ điều kiện go-live, sau đó mới promotion sang `staging` và `prod`. Thực hiện đúng thứ tự; khi một **Gate** chưa đạt, dừng và xử lý trước khi sang bước kế tiếp.
+Hệ thống tài liệu hướng dẫn thực hành (Labs) chi tiết từng bước trên **AWS Management Console kết hợp IaC/GitOps** để xây dựng nền tảng Cloud-Native SRE Platform cấp doanh nghiệp. 
 
-## Luồng triển khai
+Chuỗi bài lab dẫn dắt từ một tài khoản AWS trắng, qua 11 Module tuần tự, đạt đầy đủ các tiêu chuẩn khắt khe về **Bảo mật (Security)**, **Độ tin cậy (Resilience)**, **Khả năng quan sát (Observability)**, **Tự động mở rộng (Scalability)**, và **Tối ưu chi phí (FinOps)** trước khi chuyển giao chính thức.
+
+---
+
+## 1. Bản đồ tổng thể 11 Module triển khai
 
 ```text
-00 Chuẩn bị -> 01 IAM/Security -> 02 Network -> 03 Foundation Services
--> 04 EKS Platform -> 05 Secrets/Ingress -> 06 GitOps/Application
--> 07 Observability -> 08 Delivery/Scaling -> 09 SRE Validation
--> 10 Handoff/Cleanup
+[00 Chuẩn bị]           --> Thiết lập tài khoản, Region ap-southeast-1, Naming, Budget $50
+      |
+      v
+[01 IAM & Security]     --> GitHub OIDC, KMS CMK, CloudTrail, GuardDuty, Gitleaks
+      |
+      v
+[02 Network]            --> 3-Tier VPC đa AZ (10.0.0.0/16), NAT, VPC Endpoints, SG Matrix, Flow Logs
+      |
+      v
+[03 Foundation]         --> ECR Repos, S3/DynamoDB Remote State, RDS Postgres, ElastiCache, SQS/DLQ
+      |
+      v
+[04 EKS Platform]       --> EKS v1.30, AL2023 Managed Node Group, Add-ons, EKS Pod Identity
+      |
+      v
+[05 Secrets & Ingress]  --> Secrets Manager, ACM SSL, External Secrets Operator, AWS Load Balancer Controller
+      |
+      v
+[06 GitOps Application] --> Argo CD v2.11+, App-of-Apps, Kustomize Overlays, ReliabilityShop Microservices
+      |
+      v
+[07 Observability]      --> OpenTelemetry Collectors, Prometheus, Alertmanager (Multi-Burn-Rate), Loki, Tempo
+      |
+      v
+[08 Delivery & Scaling] --> CI/CD GitHub Actions OIDC, Trivy Scan, HPA/KEDA, Karpenter v1.0, Argo Rollouts
+      |
+      v
+[09 SRE Validation]     --> Smoke Test, SLI/SLO Baseline, k6 Load Test, Chaos GameDay, On-call Runbooks
+      |
+      v
+[10 Handoff & Cleanup]  --> Resource Inventory, Terraform Import/Plan, GitOps Ownership, DR Restore, $0.00 Audit
 ```
 
-| Phase | Đầu ra bắt buộc |
-| --- | --- |
-| `00-chuan-bi` | Phạm vi, Region, naming, budget và quy tắc evidence |
-| `01-iam-security` | IAM/OIDC/KMS/audit guardrail |
-| `02-network` | VPC đa AZ, route, endpoint, security group, flow logs |
-| `03-foundation-services` | ECR, state backend, SQS/DLQ, RDS và Redis |
-| `04-eks-platform` | EKS, node, add-on và Pod Identity khỏe |
-| `05-secrets-ingress` | Secrets Manager, ESO, DNS/TLS và ingress prerequisites |
-| `06-gitops-application` | Argo CD và ReliabilityShop `Synced/Healthy` |
-| `07-observability` | Metrics, logs và traces liên kết được |
-| `08-delivery-scaling` | Image bất biến, autoscaling, canary và rollback |
-| `09-sre-validation` | SLO baseline, load/resilience evidence và quyết định go-live |
-| `10-handoff-cleanup` | Ownership rõ, Terraform reconcile, restore và cost review |
+---
 
-## Quy ước cho mọi lab
+## 2. Bảng mục lục chi tiết từng Module & Bài Lab
 
-- **Console path:** đường dẫn thao tác AWS Console. Tên màn hình có thể đổi nhẹ theo UI.
-- **Handoff:** bước chuyển sang Git, CLI, Helm hoặc `kubectl`; không giả định Console quản lý tài nguyên Kubernetes.
-- **Expected:** tiêu chí mong đợi, chưa phải kết quả thực tế.
-- **Measured:** chỉ ghi khi đã chạy, kèm timestamp, Region, revision và evidence đã che Account ID/ARN/token.
-- **Gate:** điều kiện bắt buộc để đi tiếp. Không đánh dấu đạt nếu thiếu bằng chứng.
-- **Cleanup:** tài nguyên cần xóa theo thứ tự ngược để tránh phí và lỗi phụ thuộc.
+| Module | Tên Module & Mục tiêu | Danh sách bài Lab chi tiết |
+| :--- | :--- | :--- |
+| [**Module 00**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/00-chuan-bi/README.md) | **Chuẩn bị môi trường & Nguyên tắc SRE** | • [00.01: Tài khoản, Region & Identity](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/00-chuan-bi/01-account-region-identity.md)<br>• [00.02: Naming, Tagging & AWS Budget $50](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/00-chuan-bi/02-naming-tagging-budget.md)<br>• [00.03: Quản lý Evidence & Redaction](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/00-chuan-bi/03-evidence-approval.md) |
+| [**Module 01**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/01-iam-security/README.md) | **IAM, Bảo mật & Audit Guardrails** | • [01.01: GitHub Actions OIDC Roles](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/01-iam-security/01-github-oidc-roles.md)<br>• [01.02: KMS Customer Managed Key](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/01-iam-security/02-kms-key.md)<br>• [01.03: CloudTrail & Amazon GuardDuty](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/01-iam-security/03-cloudtrail-guardduty.md)<br>• [01.04: Bí mật & Ngăn ngừa rò rỉ (Gitleaks)](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/01-iam-security/04-secrets-redaction.md) |
+| [**Module 02**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/02-network/README.md) | **Mạng VPC, Định tuyến & Phân đoạn bảo mật** | • [02.01: 3-Tier VPC & Subnets](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/02-network/01-vpc-subnets.md)<br>• [02.02: Route Tables, IGW & NAT Gateway](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/02-network/02-route-table-igw-nat.md)<br>• [02.03: S3 & Interface VPC Endpoints](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/02-network/03-vpc-endpoints.md)<br>• [02.04: Ma trận Security Groups](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/02-network/04-security-groups.md)<br>• [02.05: VPC Flow Logs & CloudWatch Insights](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/02-network/05-vpc-flow-logs.md) |
+| [**Module 03**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/03-foundation-services/README.md) | **Foundation Services (Data, Storage & Messaging)** | • [03.01: Amazon ECR Repositories](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/03-foundation-services/01-ecr.md)<br>• [03.02: S3 & DynamoDB Terraform State Backend](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/03-foundation-services/02-s3-terraform-state.md)<br>• [03.03: Amazon SQS Queue & Dead-Letter Queue](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/03-foundation-services/02-sqs-dlq.md)<br>• [03.04: RDS PostgreSQL Database](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/03-foundation-services/03-rds-postgresql.md)<br>• [03.05: ElastiCache Redis Cluster](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/03-foundation-services/04-elasticache-redis.md)<br>• [03.06: RDS Snapshot & PITR Restore Drill](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/03-foundation-services/06-backup-restore.md) |
+| [**Module 04**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/04-eks-platform/README.md) | **EKS Platform & Compute Engine** | • [04.01: EKS Cluster v1.30 Control Plane](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/04-eks-platform/01-eks-cluster.md)<br>• [04.02: Managed Node Groups (AL2023)](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/04-eks-platform/02-node-groups.md)<br>• [04.03: EKS Managed Add-ons (CoreDNS, CNI)](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/04-eks-platform/03-managed-addons.md)<br>• [04.04: EKS Pod Identity Associations](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/04-eks-platform/04-pod-identity.md)<br>• [04.05: Cụm kiểm tra sức khỏe nền tảng EKS](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/04-eks-platform/05-platform-health.md) |
+| [**Module 05**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/05-secrets-ingress/README.md) | **Secrets Governance & Ingress Traffic** | • [05.01: AWS Secrets Manager](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/05-secrets-ingress/01-secrets-manager.md)<br>• [05.02: ACM Certificate & Route 53 DNS](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/05-secrets-ingress/02-acm-route53.md)<br>• [05.03: External Secrets Operator (ESO)](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/05-secrets-ingress/02-external-secrets-handoff.md)<br>• [05.04: AWS Load Balancer Controller (LBC)](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/05-secrets-ingress/03-load-balancer-controller-prereqs.md)<br>• [05.05: ALB Ingress Validation & Target Groups](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/05-secrets-ingress/04-alb-ingress-validation.md) |
+| [**Module 06**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/06-gitops-application/README.md) | **GitOps & Ứng dụng mẫu ReliabilityShop** | • [06.01: Argo CD Bootstrap & Secret Rotation](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/06-gitops-application/01-argocd-bootstrap.md)<br>• [06.02: Argo CD AppProjects & RBAC](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/06-gitops-application/02-projects-environments.md)<br>• [06.03: Platform Applications (App-of-Apps)](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/06-gitops-application/03-platform-applications.md)<br>• [06.04: Kustomize Base Manifests](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/06-gitops-application/04-reliabilityshop-base.md)<br>• [06.05: Environment Overlays (Dev)](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/06-gitops-application/05-environment-overlays.md)<br>• [06.06: First Sync & End-to-End Smoke Test](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/06-gitops-application/06-first-sync-smoke.md) |
+| [**Module 07**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/07-observability/README.md) | **Observability & SRE Tri-Signal Telemetry** | • [07.01: OpenTelemetry (OTel) Collectors](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/07-observability/01-otel-collectors.md)<br>• [07.02: Prometheus & Multi-Burn-Rate Alerts](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/07-observability/02-prometheus-alertmanager.md)<br>• [07.03: Grafana Loki (Logs) & Tempo (Traces)](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/07-observability/03-loki-tempo.md)<br>• [07.04: Dashboards as Code (Golden Signals/SLO)](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/07-observability/04-grafana-dashboards.md)<br>• [07.05: Tri-Signal Correlation Drill](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/07-observability/05-observability-checkpoint.md) |
+| [**Module 08**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/08-delivery-scaling/README.md) | **Delivery, Autoscaling & Canary Deployment** | • [08.01: CI Build, Trivy Scan & OIDC ECR](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/08-delivery-scaling/01-ci-build-scan-ecr.md)<br>• [08.02: GitOps Environment Promotion](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/08-delivery-scaling/02-gitops-promotion.md)<br>• [08.03: HPA & KEDA Queue-based Autoscaling](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/08-delivery-scaling/03-hpa-keda.md)<br>• [08.04: Karpenter v1.0 Node Autoscaling](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/08-delivery-scaling/04-karpenter.md)<br>• [08.05: Argo Rollouts Canary & AnalysisTemplate](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/08-delivery-scaling/05-argo-rollouts-canary.md)<br>• [08.06: Automated Rollback on Metric Spike](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/08-delivery-scaling/06-rollback.md) |
+| [**Module 09**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/09-sre-validation/README.md) | **SRE Validation, Resilience & Go-Live Gate** | • [09.01: Platform End-to-End Smoke Test](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/09-sre-validation/01-platform-smoke.md)<br>• [09.02: SLI/SLO Math & Error Budget Policy](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/09-sre-validation/02-sli-slo-error-budget.md)<br>• [09.03: k6 Load Test Baseline Scorecard](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/09-sre-validation/03-k6-baseline.md)<br>• [09.04: Pod Disruption & Cache Fallback Test](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/09-sre-validation/04-resilience-test.md)<br>• [09.05: Chaos GameDay: Worker Node Outage](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/09-sre-validation/05-chaos-gameday.md)<br>• [09.06: Incident Triage Runbook & Postmortem](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/09-sre-validation/06-incident-runbook.md)<br>• [09.07: Go-Live Gate Sign-Off (ORR)](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/09-sre-validation/07-go-live-gate.md) |
+| [**Module 10**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/README.md) | **Handoff, State Reconcile & Reverse Cleanup** | • [10.01: Resource Inventory & Ownership](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/01-resource-inventory.md)<br>• [10.02: Terraform Import & State Reconciliation](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/02-terraform-import-plan.md)<br>• [10.03: GitOps Ownership & Drift Management](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/03-gitops-ownership.md)<br>• [10.04: Rebuild & DR Restore Verification](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/04-rebuild-restore.md)<br>• [10.05: Reverse Dependency Cleanup Order](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/05-cleanup-order.md)<br>• [10.06: Cost Audit, True Zero & Handoff](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/06-cost-audit.md) |
 
-Không lưu secret, access key, kubeconfig, token, full ARN hoặc Account ID vào Git. Các bước tạo, sửa, import hoặc xóa tài nguyên production phải được review và phê duyệt riêng.
+---
+
+## 3. Quy ước chung bắt buộc cho mọi bài Lab
+
+1. **Console Path:** Luôn cung cấp đường dẫn điều hướng chính xác trên AWS Console (Ví dụ: `Amazon EKS > Clusters > [Cluster Name] > Compute`).
+2. **Handoff Principle:** Tách bạch tuyệt đối vai trò: Console chỉ dùng quan sát và khởi tạo ban đầu; Terraform quản lý hạ tầng đám mây; Argo CD quản lý tài nguyên trong Kubernetes.
+3. **Strict Gate Criteria:** Mỗi bài lab kết thúc bằng một bảng **SRE Gate Check**. Tuyệt đối không chuyển sang bài lab kế tiếp nếu chưa đạt 100% điều kiện của Gate.
+4. **Data Redaction Invariant:** Mọi file log, bằng chứng kết quả (evidence) cam kết lên Git phải được che giấu toàn bộ:
+   - AWS Account ID (thay bằng `***` hoặc `123456789012`).
+   - Private IPs, Tokens, Passwords, API Keys, Private ARNs.
+5. **Reverse Cleanup Order:** Khi dọn dẹp môi trường, luôn xóa theo thứ tự ngược lại (Workload/Ingress -> Cluster/Nodes -> Datastores -> VPC Network -> KMS/Security) để tránh tài nguyên mồ côi (Orphan Leak) gây rò rỉ chi phí.
