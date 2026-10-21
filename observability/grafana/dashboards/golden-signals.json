@@ -1,0 +1,14 @@
+{
+  "title": "Platform Golden Signals",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "tags": ["sre", "golden-signals"],
+  "templating": {"list": [{"name": "service", "type": "query", "datasource": {"type": "prometheus", "uid": "prometheus"}, "query": "label_values(service:http_requests_per_second:rate5m,service)", "includeAll": true, "multi": true}]},
+  "panels": [
+    {"type": "timeseries", "title": "Request rate", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}, "targets": [{"expr": "service:http_requests_per_second:rate5m{service=~\"$service\"}", "legendFormat": "{{service}}"}]},
+    {"type": "timeseries", "title": "5xx error ratio", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}, "targets": [{"expr": "service:http_error_ratio:rate5m{service=~\"$service\"}", "legendFormat": "{{service}}"}]},
+    {"type": "timeseries", "title": "p95 latency (seconds)", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}, "targets": [{"expr": "service:http_latency_p95:rate5m{service=~\"$service\"}", "legendFormat": "{{service}}"}]},
+    {"type": "timeseries", "title": "Collector target health", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}, "targets": [{"expr": "up{job=~\"otel-collector.*\"}", "legendFormat": "{{instance}}"}]}
+  ]
+}

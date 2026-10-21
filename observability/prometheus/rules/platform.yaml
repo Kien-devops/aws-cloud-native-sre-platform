@@ -1,0 +1,49 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-observability
+  namespace: monitoring
+  labels:
+    prometheus: k8s
+    role: alert-rules
+spec:
+  groups:
+    - name: platform.recording
+      interval: 30s
+      rules:
+        - record: service:http_requests_per_second:rate5m
+          expr: sum by (service) (rate(http_requests_total[5m]))
+        - record: service:http_error_ratio:rate5m
+          expr: sum by (service) (rate(http_requests_total{status=~"5.."}[5m])) / clamp_min(sum by (service) (rate(http_requests_total[5m])), 1e-9)
+        - record: service:http_latency_p95:rate5m
+          expr: histogram_quantile(0.95, sum by (service, le) (rate(http_request_duration_seconds_bucket[5m])))
+    - name: platform.alerts
+      rules:
+        - alert: OTelCollectorDown
+          expr: absent(up{job=~"otel-collector.*"})
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: OpenTelemetry Collector targets are absent
+            runbook_url: https://github.com/example/aws-cloud-native-sre-platform/blob/main/sre/runbooks/otel-collector-failure.md
+        - alert: ServiceHigh5xxRate
+          expr: service:http_error_ratio:rate5m > 0.05 and sum by (service) (rate(http_requests_total[5m])) > 0.1
+          for: 10m
+          labels:
+            severity: critical
+            team: service
+          annotations:
+            summary: '{{ $labels.service }} has elevated HTTP 5xx rate'
+            description: Error ratio is {{ $value | humanizePercentage }} over the last 5 minutes.
+            runbook_url: https://github.com/example/aws-cloud-native-sre-platform/blob/main/sre/runbooks/high-http-5xx.md
+        - alert: ServiceP95LatencyHigh
+          expr: service:http_latency_p95:rate5m > 0.3 and sum by (service) (rate(http_requests_total[5m])) > 0.1
+          for: 15m
+          labels:
+            severity: warning
+            team: service
+          annotations:
+            summary: '{{ $labels.service }} p95 latency exceeds 300ms'
+            runbook_url: https://github.com/example/aws-cloud-native-sre-platform/blob/main/sre/runbooks/high-p95-latency.md

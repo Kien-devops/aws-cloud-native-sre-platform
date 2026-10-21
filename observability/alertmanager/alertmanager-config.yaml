@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+data:
+  alertmanager.yaml: |
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: platform-default
+      group_by: [alertname, namespace, service]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        - matchers: ['severity="critical"']
+          receiver: platform-critical
+          continue: false
+        - matchers: ['severity="warning"']
+          receiver: platform-warning
+    inhibit_rules:
+      - source_matchers: ['alertname="NodeNotReady"']
+        target_matchers: ['severity=~"warning|info"']
+        equal: [node]
+    receivers:
+      - name: platform-default
+      - name: platform-warning
+        webhook_configs:
+          - url_file: /etc/alertmanager/secrets/webhook-url
+            send_resolved: true
+      - name: platform-critical
+        webhook_configs:
+          - url_file: /etc/alertmanager/secrets/webhook-url
+            send_resolved: true
