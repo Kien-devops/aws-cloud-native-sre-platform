@@ -1,0 +1,52 @@
+# Agent and Model Context Instructions (Local Only)
+codex.md
+CODEX.md
+gemini.md
+GEMINI.md
+.agents/
+
+# Knowledge Graph / MCP Caches
+.code-review-graph/
+.codebase-memory/
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+**/backend.tf
+!**/backend.tf.example
+
+# Kubernetes & Helm
+kubeconfig
+kubeconfig.*
+*.kubeconfig
+helm/*.tgz
+
+# Secrets & Credentials
+*.pem
+*.key
+*.cert
+*.crt
+.env
+.env.*
+!*.example
+
+# Logs & Temporary files
+*.log
+tmp/
+temp/
+
+# OS Specific
+.DS_Store
+Thumbs.db
+desktop.ini
