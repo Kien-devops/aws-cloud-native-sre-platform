@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: sre-platform
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Platform infrastructure add-ons, controllers, and monitoring
+  sourceRepos:
+    - 'https://github.com/Kien-devops/aws-cloud-native-sre-platform.git'
+    - 'https://aws.github.io/eks-charts'
+    - 'https://charts.external-secrets.io'
+    - 'https://prometheus-community.github.io/helm-charts'
+    - 'https://grafana.github.io/helm-charts'
+    - 'https://open-telemetry.github.io/opentelemetry-helm-charts'
+  destinations:
+    - namespace: kube-system
+      server: https://kubernetes.default.svc
+    - namespace: external-secrets
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: observability
+      server: https://kubernetes.default.svc
+    - namespace: keda
+      server: https://kubernetes.default.svc
+    - namespace: argo-rollouts
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'

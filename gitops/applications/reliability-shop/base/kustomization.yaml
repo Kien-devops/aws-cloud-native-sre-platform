@@ -1,0 +1,53 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - service-account.yaml
+  - external-secret.yaml
+  - reliability-shop-app.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - keda-scaledobject.yaml
+  - order-service-analysis-template.yaml
+  - order-service-rollout-services.yaml
+  - order-service-rollout.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: app-config
+    namespace: reliability-shop
+    literals:
+      - NODE_ENV=production
+      - AWS_REGION=ap-southeast-1
+      - SQS_QUEUE_NAME=reliability-shop-dev-order-queue
+      - DB_HOST=sre-platform-dev-pg.c1ky6i8iomcn.ap-southeast-1.rds.amazonaws.com
+      - DB_PORT=5432
+      - DB_NAME=reliability_shop
+      - DB_SSL=true
+      - REDIS_HOST=master.sre-platform-dev-redis.qspmd1.apse1.cache.amazonaws.com
+      - REDIS_PORT=6379
+      - REDIS_TLS=true
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.monitoring.svc.cluster.local:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - NODE_OPTIONS=--require /otel-auto-instrumentation/autoinstrumentation.js
+
+images:
+  - name: reliabilityshop/frontend
+    newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/frontend
+    digest: sha256:94a48aaa7ef0a1d45e246faf2e55ce1f1b7fdf2fc3a4c742db6fdd5139fd5243
+  - name: reliabilityshop/order-service
+    newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/order-service
+    digest: sha256:5107d6e6072102b3c38c38b9d9a052b1c461ff7dbc9717ec1c672a31a292f916
+  - name: reliabilityshop/inventory-service
+    newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/inventory-service
+    digest: sha256:0dbb772221cfec511f802f8c3f03e1d08f02dcca20834c5b35a8cf2f3baa609e
+  - name: reliabilityshop/auth-service
+    newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/auth-service
+    digest: sha256:5104485b8e369a314dc681aac21aa3f29c3c6d0802e70ee64902778da80e0a43
+  - name: reliabilityshop/payment-worker
+    newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/payment-worker
+    digest: sha256:7ba01657e54d3830b9437b69eb6b791ac939d18cc2a2fa1bcd4d2456bcfb970d

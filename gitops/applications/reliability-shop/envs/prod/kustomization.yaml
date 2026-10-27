@@ -1,0 +1,55 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: reliability-shop-prod
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Ingress
+      name: reliability-shop-ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: shop-prod.dev.devopsss.site
+      - op: replace
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1group.order
+        value: "12"
+
+  - target:
+      kind: ConfigMap
+      name: app-config
+    patch: |-
+      - op: replace
+        path: /data/SQS_QUEUE_NAME
+        value: reliability-shop-prod-order-queue
+  - target:
+      group: keda.sh
+      kind: ScaledObject
+      name: payment-worker-scaler
+    patch: |-
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 2
+      - op: replace
+        path: /spec/triggers/0/metadata/queueURL
+        value: https://sqs.ap-southeast-1.amazonaws.com/620306387033/reliability-shop-prod-order-queue
+
+images:
+  - name: reliabilityshop/frontend
+    newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/frontend
+    digest: sha256:94a48aaa7ef0a1d45e246faf2e55ce1f1b7fdf2fc3a4c742db6fdd5139fd5243
+  - name: reliabilityshop/order-service
+    newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/order-service
+    digest: sha256:5107d6e6072102b3c38c38b9d9a052b1c461ff7dbc9717ec1c672a31a292f916
+  - name: reliabilityshop/inventory-service
+    newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/inventory-service
+    digest: sha256:0dbb772221cfec511f802f8c3f03e1d08f02dcca20834c5b35a8cf2f3baa609e
+  - name: reliabilityshop/auth-service
+    newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/auth-service
+    digest: sha256:5104485b8e369a314dc681aac21aa3f29c3c6d0802e70ee64902778da80e0a43
+  - name: reliabilityshop/payment-worker
+    newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/payment-worker
+    digest: sha256:7ba01657e54d3830b9437b69eb6b791ac939d18cc2a2fa1bcd4d2456bcfb970d

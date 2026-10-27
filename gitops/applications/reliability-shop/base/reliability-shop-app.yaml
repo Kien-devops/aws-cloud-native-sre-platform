@@ -1,0 +1,380 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: reliability-shop
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: reliability-shop
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: frontend
+    spec:
+      initContainers:
+        - name: opentelemetry-auto-instrumentation
+          image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:latest
+          command: ["cp", "-r", "/autoinstrumentation/.", "/otel-auto-instrumentation"]
+          volumeMounts:
+            - name: opentelemetry-auto-instrumentation
+              mountPath: /otel-auto-instrumentation
+      containers:
+        - name: app
+          image: reliabilityshop/frontend:bootstrap
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: app-config
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: "frontend"
+            - name: ORDER_SERVICE_URL
+              value: "http://order-service:8080"
+            - name: INVENTORY_SERVICE_URL
+              value: "http://inventory-service:8080"
+            - name: AUTH_SERVICE_URL
+              value: "http://auth-service:8080"
+            - name: WORKER_SERVICE_URL
+              value: "http://payment-worker:8080"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 5
+          volumeMounts:
+            - name: opentelemetry-auto-instrumentation
+              mountPath: /otel-auto-instrumentation
+      volumes:
+        - name: opentelemetry-auto-instrumentation
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: reliability-shop
+  labels:
+    app.kubernetes.io/name: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8080
+      name: http
+  selector:
+    app.kubernetes.io/name: frontend
+---
+# Deployment for order-service replaced by Rollout (order-service-rollout.yaml)
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: reliability-shop
+  labels:
+    app.kubernetes.io/name: order-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app.kubernetes.io/name: order-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  namespace: reliability-shop
+  labels:
+    app.kubernetes.io/name: inventory-service
+    app.kubernetes.io/part-of: reliability-shop
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: inventory-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: inventory-service
+    spec:
+      initContainers:
+        - name: opentelemetry-auto-instrumentation
+          image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:latest
+          command: ["cp", "-r", "/autoinstrumentation/.", "/otel-auto-instrumentation"]
+          volumeMounts:
+            - name: opentelemetry-auto-instrumentation
+              mountPath: /otel-auto-instrumentation
+      containers:
+        - name: app
+          image: reliabilityshop/inventory-service:bootstrap
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: app-config
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: "inventory-service"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 5
+          volumeMounts:
+            - name: opentelemetry-auto-instrumentation
+              mountPath: /otel-auto-instrumentation
+      volumes:
+        - name: opentelemetry-auto-instrumentation
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service
+  namespace: reliability-shop
+  labels:
+    app.kubernetes.io/name: inventory-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app.kubernetes.io/name: inventory-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: reliability-shop
+  labels:
+    app.kubernetes.io/name: auth-service
+    app.kubernetes.io/part-of: reliability-shop
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: auth-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: auth-service
+    spec:
+      initContainers:
+        - name: opentelemetry-auto-instrumentation
+          image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:latest
+          command: ["cp", "-r", "/autoinstrumentation/.", "/otel-auto-instrumentation"]
+          volumeMounts:
+            - name: opentelemetry-auto-instrumentation
+              mountPath: /otel-auto-instrumentation
+      containers:
+        - name: app
+          image: reliabilityshop/auth-service:bootstrap
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: app-config
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: "auth-service"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: app-credentials
+                  key: JWT_SECRET
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 5
+          volumeMounts:
+            - name: opentelemetry-auto-instrumentation
+              mountPath: /otel-auto-instrumentation
+      volumes:
+        - name: opentelemetry-auto-instrumentation
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: reliability-shop
+  labels:
+    app.kubernetes.io/name: auth-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app.kubernetes.io/name: auth-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-worker
+  namespace: reliability-shop
+  labels:
+    app.kubernetes.io/name: payment-worker
+    app.kubernetes.io/part-of: reliability-shop
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: payment-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: payment-worker
+    spec:
+      serviceAccountName: reliability-shop-sa
+      initContainers:
+        - name: opentelemetry-auto-instrumentation
+          image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:latest
+          command: ["cp", "-r", "/autoinstrumentation/.", "/otel-auto-instrumentation"]
+          volumeMounts:
+            - name: opentelemetry-auto-instrumentation
+              mountPath: /otel-auto-instrumentation
+      containers:
+        - name: app
+          image: reliabilityshop/payment-worker:bootstrap
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: app-config
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: "payment-worker"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: app-credentials
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-credentials
+                  key: DB_PASSWORD
+            - name: REDIS_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: app-credentials
+                  key: REDIS_AUTH
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 5
+          volumeMounts:
+            - name: opentelemetry-auto-instrumentation
+              mountPath: /otel-auto-instrumentation
+      volumes:
+        - name: opentelemetry-auto-instrumentation
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-worker
+  namespace: reliability-shop
+  labels:
+    app.kubernetes.io/name: payment-worker
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app.kubernetes.io/name: payment-worker
