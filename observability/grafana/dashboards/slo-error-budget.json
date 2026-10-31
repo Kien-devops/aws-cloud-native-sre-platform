@@ -1,0 +1,163 @@
+{
+  "title": "SRE — Golden Signals & Error Budget",
+  "tags": ["sre", "slo", "golden-signals"],
+  "timezone": "browser",
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Availability SLI (Target: >= 99.9%)",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "min": 90,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 99.0 },
+              { "color": "green", "value": 99.9 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "(1 - (sum(rate(otel_http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[30d])) or sum(rate(http_requests_total{status=~\"5..\"}[30d])) or vector(0)) / (sum(rate(otel_http_server_duration_milliseconds_count[30d])) or sum(rate(http_requests_total[30d])) or vector(1))) * 100",
+          "legendFormat": "SLI Availability"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Remaining Error Budget (%)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 20 },
+              { "color": "green", "value": 50 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "clamp_min((1 - ((sum(increase(otel_http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[30d])) or sum(increase(http_requests_total{status=~\"5..\"}[30d])) or vector(0)) / (((sum(increase(otel_http_server_duration_milliseconds_count[30d])) or sum(increase(http_requests_total[30d])) or vector(1))) * 0.001))) * 100, 0)",
+          "legendFormat": "Remaining Budget"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Total Request Rate (RPS)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(otel_http_server_duration_milliseconds_count[1m])) or sum(rate(http_requests_total[1m])) or vector(0)",
+          "legendFormat": "Total RPS"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "HTTP 5xx Error Rate",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0.1 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(otel_http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[1m])) or sum(rate(http_requests_total{status=~\"5..\"}[1m])) or vector(0)",
+          "legendFormat": "5xx RPS"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Current Error Budget Burn Rate (1h Window)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1.0 },
+              { "color": "red", "value": 14.4 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "((sum(rate(otel_http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[1h])) or sum(rate(http_requests_total{status=~\"5..\"}[1h])) or vector(0)) / (sum(rate(otel_http_server_duration_milliseconds_count[1h])) or sum(rate(http_requests_total[1h])) or vector(1))) / 0.001",
+          "legendFormat": "Burn Rate (1h Window)"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "HTTP Latency Quantiles (p50, p90, p95, p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "(histogram_quantile(0.99, sum(rate(otel_http_server_duration_milliseconds_bucket[5m])) by (le)) / 1000) or histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p99 Latency"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "(histogram_quantile(0.95, sum(rate(otel_http_server_duration_milliseconds_bucket[5m])) by (le)) / 1000) or histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95 Latency"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "(histogram_quantile(0.50, sum(rate(otel_http_server_duration_milliseconds_bucket[5m])) by (le)) / 1000) or histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50 Latency"
+        }
+      ]
+    }
+  ]
+}
