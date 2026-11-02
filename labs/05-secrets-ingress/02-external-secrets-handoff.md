@@ -140,7 +140,7 @@ Sau khi hạ tầng AWS Console đã sẵn sàng, các manifest Kubernetes sau �
 ### 4.1. Khởi tạo `ClusterSecretStore` (`gitops/platform/external-secrets/cluster-secret-store.yaml`)
 
 ```yaml
-apiVersion: external-secrets.io/v1beta1
+apiVersion: external-secrets.io/v1
 kind: ClusterSecretStore
 metadata:
   name: aws-secretsmanager-dev
@@ -149,15 +149,14 @@ spec:
     aws:
       service: SecretsManager
       region: ap-southeast-1
-      auth:
-        # Sử dụng Pod Identity (không cần hardcode Secret Access Key hay IRSA annotation)
-        jwt: {}
+      # Với EKS Pod Identity, biến môi trường AWS_CONTAINER_CREDENTIALS_FULL_URI được inject tự động,
+      # AWS SDK tự động suy diễn thông tin xác thực từ môi trường mà không cần cấu hình auth block.
 ```
 
 ### 4.2. Khởi tạo `ExternalSecret` (`gitops/applications/reliability-shop/base/external-secret.yaml`)
 
 ```yaml
-apiVersion: external-secrets.io/v1beta1
+apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: reliability-shop-credentials

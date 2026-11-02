@@ -67,12 +67,27 @@
 1. Mở ô tìm kiếm Console -> Nhập `IAM` -> Chọn **IAM**.
 2. Chọn **Policies** ở menu bên trái -> Nhấp nút cam **Create policy**.
 3. Chuyển sang tab **JSON** trong Policy editor.
-4. Tải hoặc sao chép policy chính thức khuyến nghị từ AWS cho Load Balancer Controller v2.7+:
-   *(Truy cập [AWS LBC IAM Policy v2.7+](https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.7.2/docs/install/iam_policy.json) và dán toàn bộ JSON vào editor)*.
+4. Tải hoặc sao chép policy chính thức khuyến nghị từ AWS cho Load Balancer Controller mới nhất:
+   *(Truy cập [AWS LBC IAM Policy Latest](https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/main/docs/install/iam_policy.json) và dán toàn bộ JSON vào editor — bắt buộc phải có `elasticloadbalancing:DescribeListenerAttributes` và `elasticloadbalancing:ModifyListenerAttributes`)*.
 5. Nhấp **Next**.
 6. **Policy name:** Nhập `AWSLoadBalancerControllerIAMPolicy`.
 7. **Description:** `IAM policy for AWS Load Balancer Controller on EKS`.
 8. Nhấp **Create policy**.
+
+> [!IMPORTANT]
+> **SRE Operational Note - IMDS Hop Limit & Helm Parameters:**
+> Khi EKS worker nodes chạy với IMDSv2 (`HttpPutResponseHopLimit = 1`), các Pods không chạy `hostNetwork: true` sẽ bị timeout khi controller cố gắng truy vấn VPC ID từ `169.254.169.254`. Để đảm bảo độ tin cậy:
+> 1. Chạy lệnh tăng Hop Limit lên 2: `aws ec2 modify-instance-metadata-options --instance-id <ID> --http-put-response-hop-limit 2 --http-endpoint enabled --region ap-southeast-1`
+> 2. Khai báo rõ `region` và `vpcId` khi cài đặt Helm chart:
+>    ```bash
+>    helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
+>      -n kube-system \
+>      --set clusterName=sre-platform-dev \
+>      --set region=ap-southeast-1 \
+>      --set vpcId=<VPC_ID> \
+>      --set serviceAccount.create=true \
+>      --set serviceAccount.name=aws-load-balancer-controller
+>    ```
 
 ---
 

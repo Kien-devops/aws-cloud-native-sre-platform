@@ -1,0 +1,17 @@
+=== LAB 05.04 EVIDENCE ===
+Timestamp:            2026-11-03T02:32:30Z
+Cluster Name:         sre-platform-dev
+Region:               ap-southeast-1
+Domain FQDN:          shop.dev.devopsss.site
+Route 53 Zone ID:     Z0611184P1C0HRBDC7VQ
+ACM Certificate ARN:  arn:aws:acm:ap-southeast-1:123456789012:certificate/6af0c1dd-cbf4-4560-84b7-51e7cda7a69a
+ALB Name:             k8s-reliabil-reliabil-b9e22f38bc
+ALB DNS Name:         k8s-reliabil-reliabil-b9e22f38bc-796400441.ap-southeast-1.elb.amazonaws.com
+ALB State:            active (internet-facing)
+Target Group ARN:     arn:aws:elasticloadbalancing:ap-southeast-1:123456789012:targetgroup/k8s-reliabil-reliabil-ffe3000318/ce99f8aad2595d1f
+Target Group Health:  2/2 Targets Healthy (IP Target Type: 10.0.10.34:80, 10.0.11.19:80)
+Route 53 Alias:       shop.dev.devopsss.site -> k8s-reliabil-reliabil-b9e22f38bc-796400441.ap-southeast-1.elb.amazonaws.com (A / Alias)
+HTTP Status:          HTTP/1.1 301 Moved Permanently (Location: https://shop.dev.devopsss.site:443/)
+HTTPS Status:         HTTP/1.1 200 OK (TLS handshake verified with Amazon-issued ACM certificate)
+External Secrets:     ClusterSecretStore: aws-secretsmanager-dev (Valid/True) -> ExternalSecret: reliability-shop-credentials (SecretSynced/True)
+

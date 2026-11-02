@@ -32,7 +32,7 @@
 | **Instance Type** | `t3.medium` (2 vCPU, 4 GiB RAM) | Cấu hình máy chủ phù hợp môi trường lab |
 | **Disk Size** | `50 GiB gp3` (Mã hóa KMS) | Dung lượng ổ đĩa chứa root OS và container images |
 | **Subnets** | 2 Private App Subnets | `10.0.10.0/24` (AZ-a) và `10.0.11.0/24` (AZ-b) |
-| **Scaling Size** | Min: `2` — Desired: `2` — Max: `4` | Ngưỡng co giãn số lượng máy chủ |
+| **Scaling Size** | Min: `3` — Desired: `3` — Max: `6` | Ngưỡng co giãn số lượng máy chủ (tối thiểu 3 nodes để đủ pod capacity cho microservices) |
 | **Kubernetes Labels** | `role=system`, `environment=dev` | Nhãn phục vụ lập lịch Pods |
 
 ---
@@ -78,15 +78,15 @@
 
 1. **AMI configuration:**
    - **AMI type:** Chọn `Amazon Linux 2023 (AL2023_x86_64)`.
-   - **Capacity type:** Chọn `On-Demand`.
+   - **Capacity type:** Chọn `Spot`.
 2. **Instance types:**
    - Mặc định là `t3.medium`. Nếu cần đổi, nhấp chọn instance type phù hợp (ví dụ `t3.medium` - 2 vCPU, 4 GiB Memory).
 3. **Disk size:**
    - Nhập `50` GiB.
 4. **Node group scaling configuration:**
-   - **Minimum size:** `2`
-   - **Maximum size:** `4`
-   - **Desired size:** `2`
+   - **Minimum size:** `3`
+   - **Maximum size:** `6`
+   - **Desired size:** `3`
 5. **Node group update configuration:**
    - Chọn **Maximum unavailable:** `1` (Đảm bảo trong quá trình nâng cấp hoặc bảo trì, chỉ có tối đa 1 node bị offline cùng lúc).
 6. Nhấp nút **Next**.
@@ -112,8 +112,8 @@
 ## 4. Xác minh (Verification)
 
 ### 4.1. Kiểm tra trên Console
-- **EKS Console:** Tab **Compute** hiển thị Node Group `sre-platform-dev-system-nodes` với trạng thái **Active**, 2 nodes Ready.
-- **EC2 Console:** Menu **Instances** hiển thị 2 EC2 instances mới có tên tiền tố dạng `sre-platform-dev-system-nodes-...`, trạng thái **Running**, không có Public IPv4, và nằm ở 2 AZs khác nhau (`ap-southeast-1a` và `ap-southeast-1b`).
+- **EKS Console:** Tab **Compute** hiển thị Node Group `sre-platform-dev-system-nodes` với trạng thái **Active**, 3 nodes Ready.
+- **EC2 Console:** Menu **Instances** hiển thị 3 EC2 instances mới có tên tiền tố dạng `sre-platform-dev-system-nodes-...`, trạng thái **Running**, không có Public IPv4, và phân bố đều ở các AZs (`ap-southeast-1a` và `ap-southeast-1b`).
 
 ### 4.2. Kiểm tra bằng `kubectl` từ Terminal
 ```bash
@@ -128,8 +128,8 @@ kubectl get pods -n kube-system -o wide
 ```
 
 **Kết quả mong đợi:**
-- Cả 2 nodes đều hiển thị trạng thái `Ready`.
-- Một node nằm tại `ap-southeast-1a`, một node nằm tại `ap-southeast-1b`.
+- Cả 3 nodes đều hiển thị trạng thái `Ready`.
+- Các nodes phân bố trên `ap-southeast-1a` và `ap-southeast-1b`.
 - Các daemon pods của `aws-node` (VPC CNI) và `kube-proxy` đang chạy ở trạng thái `Running` trên từng node.
 
 ---
@@ -149,9 +149,9 @@ resource "aws_eks_node_group" "system" {
   disk_size      = 50
 
   scaling_config {
-    desired_size = 2
-    max_size     = 4
-    min_size     = 2
+    desired_size = 3
+    max_size     = 6
+    min_size     = 3
   }
 
   update_config {
@@ -175,7 +175,7 @@ resource "aws_eks_node_group" "system" {
 ## 6. Điều kiện hoàn thành Gate (Gate Check)
 
 - [ ] Node Group `sre-platform-dev-system-nodes` ở trạng thái **Active**.
-- [ ] 2 Worker Nodes hoạt động ở 2 AZs khác nhau (`Ready` status).
+- [ ] 3 Worker Nodes hoạt động ở 2 AZs khác nhau (`Ready` status).
 - [ ] Nodes không có Public IP và giao tiếp với Internet thông qua NAT Gateway.
 - [ ] Lệnh `kubectl get nodes` hiển thị đầy đủ nhãn `role=system` và hệ điều hành Amazon Linux 2023.
 

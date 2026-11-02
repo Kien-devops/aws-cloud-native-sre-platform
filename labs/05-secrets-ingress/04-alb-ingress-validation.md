@@ -23,7 +23,7 @@
 
 | Tham số | Giá trị mẫu / Quy ước | Ý nghĩa |
 | :--- | :--- | :--- |
-| **Domain FQDN** | `shop.dev.sreplatform.yourdomain.com` | Tên miền người dùng truy cập vào ứng dụng |
+| **Domain FQDN** | `shop.dev.devopsss.site` | Tên miền người dùng truy cập vào ứng dụng |
 | **Ingress Class** | `alb` | Điều khiển bởi AWS Load Balancer Controller |
 | **Target Type** | `ip` | Điều hướng trực tiếp đến Pod IP thông qua AWS VPC CNI |
 | **Health Check Path** | `/health` hoặc `/actuator/health` | Đường dẫn kiểm tra trạng thái của microservice |
@@ -48,7 +48,7 @@
 5. Chuyển sang tab **Listeners and rules**:
    - **HTTP:80:** Phải có rule chuyển hướng (Redirect HTTP to HTTPS:443).
    - **HTTPS:443:** Default action chuyển tiếp (Forward) tới Target Group của ứng dụng.
-   - **Certificate:** Kiểm tra chứng chỉ gắn vào HTTPS listener: phải trỏ đúng chứng chỉ ACM `*.dev.sreplatform.yourdomain.com` đã tạo ở bài 05.02.
+   - **Certificate:** Kiểm tra chứng chỉ gắn vào HTTPS listener: phải trỏ đúng chứng chỉ ACM `*.dev.devopsss.site` đã tạo ở bài 05.02.
 
 ---
 
@@ -76,10 +76,10 @@
 ### Bước 3: Cấu hình Route 53 Alias Record trỏ về ALB
 
 1. Nhập `Route 53` vào thanh tìm kiếm Console -> Chọn **Route 53**.
-2. Chọn **Hosted zones** -> Nhấp vào tên miền của bạn (`sreplatform.yourdomain.com`).
+2. Chọn **Hosted zones** -> Nhấp vào tên miền của bạn (`devopsss.site`).
 3. Nhấp vào nút cam **Create record**.
 4. Cấu hình bản ghi DNS:
-   - **Record name:** Nhập `shop.dev` (tạo FQDN: `shop.dev.sreplatform.yourdomain.com`).
+   - **Record name:** Nhập `shop.dev` (tạo FQDN: `shop.dev.devopsss.site`).
    - **Record type:** `A - Routes traffic to an IPv4 address and some AWS resources`.
    - **Alias:** Gạt công tắc sang **ON** (Bật).
    - **Route traffic to:**
@@ -122,17 +122,17 @@ kubectl describe ingress reliability-shop-ingress -n reliability-shop
 ### 4.2. Kiểm tra Kết nối HTTPS & Chứng chỉ TLS
 ```bash
 # Kiểm tra HTTP Redirect sang HTTPS (Mong đợi 301 Moved Permanently)
-curl -I http://shop.dev.sreplatform.yourdomain.com
+curl -I http://shop.dev.devopsss.site
 
 # Kiểm tra trực tiếp HTTPS Endpoint và TLS Handshake
-curl -Iv https://shop.dev.sreplatform.yourdomain.com/health
+curl -Iv https://shop.dev.devopsss.site/health
 ```
 
 **Kết quả mong đợi:**
 - HTTP trả về `HTTP/1.1 301 Moved Permanently` với header `Location: https://...`.
 - HTTPS trả về `HTTP/2 200` (hoặc `HTTP/1.1 200 OK`).
 - SSL Certificate handshake hiển thị:
-  - `Server certificate: *.dev.sreplatform.yourdomain.com`
+  - `Server certificate: *.dev.devopsss.site`
   - `Issuer: Amazon`
   - `SSL certificate verify ok`.
 
@@ -149,7 +149,7 @@ data "aws_lb" "ingress_alb" {
 
 resource "aws_route53_record" "shop" {
   zone_id = data.aws_route53_zone.primary.zone_id
-  name    = "shop.dev.sreplatform.yourdomain.com"
+  name    = "shop.dev.devopsss.site"
   type    = "A"
 
   alias {
@@ -169,7 +169,7 @@ resource "aws_route53_record" "shop" {
 Timestamp:            2026-10-21T01:35:00Z
 ALB DNS Name:         k8s-reliabilityshop-1234567890.ap-southeast-1.elb.amazonaws.com
 Target Group Health:  2/2 Targets Healthy (IP Target Type)
-Route 53 Alias:       shop.dev.sreplatform.yourdomain.com -> ALB Alias
+Route 53 Alias:       shop.dev.devopsss.site -> ALB Alias
 HTTP Status:          301 Redirect to HTTPS
 HTTPS Status:         HTTP/2 200 OK
 TLS Cipher / Cert:    TLS_AES_128_GCM_SHA256 / Amazon Issued ACM
