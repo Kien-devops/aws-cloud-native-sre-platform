@@ -21,83 +21,125 @@
 
 ---
 
-## 2. Cấu trúc Thư mục Kustomize Base
+## 2. Cấu trúc Thư mục GitOps Base của ReliabilityShop
 
 ```text
-gitops/applications/reliability-shop/base/
-├── kustomization.yaml
-├── namespace.yaml
-├── order-service/
-│   ├── deployment.yaml
-│   ├── service.yaml
-│   └── configmap.yaml
-├── inventory-service/
-│   ├── deployment.yaml
-│   └── service.yaml
-└── payment-worker/
-    └── deployment.yaml
+gitops/applications/reliability-shop/
+├── application.yaml          # Argo CD Application trỏ tới base (prune: true, selfHeal: true)
+└── base/
+    ├── external-secret.yaml      # Đồng bộ credentials từ AWS Secrets Manager qua ESO
+    ├── ingress.yaml              # Ingress gia nhập sre-platform group (shop.dev.devopsss.site)
+    └── reliability-shop-app.yaml # Deployments, Services, ServiceAccount cho 5 microservices
 ```
 
 ---
 
 ## 3. Các bước Khai báo Chi tiết (Manifest Walkthrough)
 
-### Bước 1: Khai báo Namespace có ResourceQuota
+### Bước 1: Khai báo ServiceAccount và EKS Pod Identity
 
-Tạo file `gitops/applications/reliability-shop/base/namespace.yaml`:
+Để các workload (`order-service`, `payment-worker`) có quyền gửi/nhận message qua AWS SQS và giải mã KMS mà không cần hardcode credentials, ta sử dụng **EKS Pod Identity**:
 
+1. Tạo ServiceAccount `reliability-shop-sa` trong namespace `reliability-shop`.
+2. Tạo IAM Role `sre-platform-dev-app-role` với trust policy cho `pods.eks.amazonaws.com` và inline policy cấp quyền `sqs:*`, `kms:Decrypt`, `kms:GenerateDataKey`.
+3. Tạo Pod Identity Association liên kết role này với ServiceAccount `reliability-shop-sa`.
+
+---
+
+### Bước 2: Khai báo Microservices Core trong `reliability-shop-app.yaml`
+
+File `reliability-shop-app.yaml` định nghĩa đầy đủ 5 dịch vụ theo kiến trúc BFF (Backend-For-Frontend):
+
+1. **`frontend` (Reverse Proxy & SRE Storefront):** Nhận HTTPS traffic từ ALB tại cổng 8080, đóng vai trò reverse proxy định tuyến nội bộ qua CoreDNS tới các backend services.
+2. **`order-service` (Orders & Real Caching):**
+   - Kết nối trực tiếp RDS PostgreSQL 16.9.
+   - Kết nối Amazon ElastiCache Redis 7.1 qua giao thức mã hóa TLSv1.3 (`REDIS_AUTH`).
+   - Sử dụng Cache-Aside pattern (kiểm tra Redis cache `reliabilityshop:orders:list` trước, nếu cache miss thì đọc PostgreSQL và ghi đè cache).
+   - Phát event đơn hàng thật vào AWS SQS Queue (`SendMessageCommand`).
+3. **`payment-worker` (Async SQS Consumer):**
+   - Vòng lặp Long-Polling tiêu thụ message thật từ AWS SQS Queue (`ReceiveMessageCommand`).
+   - Cập nhật trạng thái đơn hàng trong PostgreSQL thành `PAID_VIA_SQS_WORKER`.
+   - Xóa message khỏi hàng đợi sau khi xử lý thành công (`DeleteMessageCommand`).
+4. **`inventory-service` & `auth-service`:** Quản lý kho hàng và phát hành xác thực JWT.
+
+Tất cả các Deployment đều chạy với:
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: reliability-shop
-  labels:
-    name: reliability-shop
-    environment: dev
-    managed-by: gitops
+      serviceAccountName: reliability-shop-sa
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: order-service
 ```
 
 ---
 
-### Bước 2: Khai báo `order-service` Chuẩn SRE
-
-Tạo file `gitops/applications/reliability-shop/base/order-service/deployment.yaml`:
+### Bước 3: Khai báo ExternalSecret (`external-secret.yaml`)
 
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
 metadata:
-  name: order-service
-  labels:
-    app.kubernetes.io/name: order-service
-    app.kubernetes.io/part-of: reliability-shop
+  name: reliability-shop-credentials
+  namespace: reliability-shop
 spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: order-service
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: order-service
-    spec:
-      terminationGracePeriodSeconds: 30
-      # PHÂN BỔ ĐA AVAILABILITY ZONE (SRE Resilience)
-      topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: topology.kubernetes.io/zone
-          whenUnsatisfiable: DoNotSchedule
-          labelSelector:
-            matchLabels:
-              app.kubernetes.io/name: order-service
-      containers:
-        - name: app
-          image: <ACCOUNT_ID>.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/order-service:git-v1.0.0
-          imagePullPolicy: IfNotPresent
-          ports:
-            - containerPort: 8080
-              name: http
-          # ĐỊNH NGHĨA TÀI NGUYÊN (SRE Capacity Planning)
+  refreshInterval: 1h
+  secretStoreRef:
+    name: sre-platform-cluster-secret-store
+    kind: ClusterSecretStore
+  target:
+    name: app-credentials
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: /sre-platform/dev/reliability-shop/credentials
+```
+
+---
+
+### Bước 4: Khai báo Ingress Chia sẻ ALB (`ingress.yaml`)
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: reliability-shop-ingress
+  namespace: reliability-shop
+  labels:
+    app.kubernetes.io/instance: reliability-shop
+  annotations:
+    kubernetes.io/ingress.class: alb
+    # DÙNG CHUNG ALB VỚI ARGOCD (FinOps Shared Ingress)
+    alb.ingress.kubernetes.io/group.name: sre-platform
+    alb.ingress.kubernetes.io/group.order: "10"
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/security-groups: sg-067f16ca5bd986a83
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-southeast-1:620306387033:certificate/6af0c1dd-cbf4-4560-84b7-51e7cda7a69a
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '2'
+spec:
+  ingressClassName: alb
+  rules:
+    - host: shop.dev.devopsss.site
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+```
           resources:
             requests:
               cpu: 100m

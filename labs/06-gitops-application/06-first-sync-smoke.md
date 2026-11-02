@@ -96,44 +96,100 @@ kubectl apply -f gitops/applications/reliability-shop/application.yaml
 
 ---
 
-### Bước 4: Thực thi Bài Kiểm thử Khói Toàn trình (End-to-End Smoke Test)
+### Bước 4: Thực thi Bộ Kiểm thử Khói SRE Toàn trình (End-to-End SRE Verification Suite)
 
-Chạy các lệnh kiểm thử sau từ terminal máy trạm:
+Chạy các lệnh kiểm thử sau từ terminal máy trạm hoặc trình duyệt:
 
-#### 1. Kiểm tra Endpoint Sức khỏe HTTP/HTTPS
+#### 1. Kiểm tra Endpoint Sức khỏe HTTP/HTTPS & Chứng chỉ SSL
 ```bash
-curl -Iv https://shop.dev.sreplatform.yourdomain.com/health
+curl -Iv https://shop.dev.devopsss.site/health
 ```
-**Kết quả mong đợi:** HTTP status code `200 OK`, chứng chỉ SSL hợp lệ.
+**Kết quả mong đợi:** HTTP status code `200 OK`, chứng chỉ SSL hợp lệ issued bởi Amazon ACM cho `*.dev.devopsss.site`.
 
-#### 2. Thực hiện Giao dịch Mẫu (Tạo Đơn Hàng qua REST API)
+#### 2. Kiểm thử Chẩn đoán Trực tiếp RDS PostgreSQL (`/api/orders/db-test`)
 ```bash
-curl -X POST https://shop.dev.sreplatform.yourdomain.com/api/v1/orders \
-  -H "Content-Type: application/json" \
-  -d '{
-    "customer_id": "cust-sre-001",
-    "item_id": "item-macbook-pro",
-    "quantity": 1,
-    "price": 1999.00
-  }'
+curl -s https://shop.dev.devopsss.site/api/orders/db-test
 ```
-**Kết quả mong đợi:** Trả về HTTP `201 Created` kèm theo mã đơn hàng:
+**Kết quả mong đợi:**
 ```json
 {
-  "order_id": "ORD-2026-X8Y9Z0",
-  "status": "PENDING_PAYMENT",
-  "message": "Order created successfully and queued for payment processing"
+  "dbConnected": true,
+  "latencyMs": 3,
+  "databaseName": "reliability_shop",
+  "currentUser": "sre_admin",
+  "pgVersion": "PostgreSQL 16.9 ...",
+  "host": "sre-platform-dev-pg.c1ky6i8iomcn.ap-southeast-1.rds.amazonaws.com"
 }
 ```
 
-#### 3. Kiểm tra Nhật ký Xử lý của Worker Pod
+#### 3. Kiểm thử Chẩn đoán Trực tiếp Amazon ElastiCache Redis (`/api/orders/redis-test`)
 ```bash
-# Xem log của payment-worker xem có nhận và xử lý message từ SQS hay không
-kubectl logs -n reliability-shop -l app.kubernetes.io/name=payment-worker --tail=50
+curl -s https://shop.dev.devopsss.site/api/orders/redis-test
 ```
-**Kết quả mong đợi:** Xuất hiện log:  
-`INFO: Received message for order ORD-2026-X8Y9Z0 from SQS`  
-`INFO: Payment processed successfully. Order updated to COMPLETED.`
+**Kết quả mong đợi:**
+```json
+{
+  "redisConnected": true,
+  "pingResponse": "PONG",
+  "latencyMs": 3,
+  "testKey": "sre_test_...",
+  "retrievedValue": "RELIABILITY_SHOP_ACTIVE",
+  "host": "master.sre-platform-dev-redis...cache.amazonaws.com",
+  "port": 6379,
+  "tlsMode": "TLSv1.3 In-Transit Encrypted",
+  "authMode": "Redis AUTH via External Secrets (AES-256)"
+}
+```
+
+#### 4. Kiểm thử Hàng đợi AWS SQS Pipeline (`/api/orders/sqs-test`)
+```bash
+curl -s https://shop.dev.devopsss.site/api/orders/sqs-test
+```
+**Kết quả mong đợi:** Trả về AWS SQS `MessageId` thật:
+```json
+{
+  "operation": "SQS_SEND_MESSAGE",
+  "queueUrl": "https://sqs.ap-southeast-1.amazonaws.com/***/reliability-shop-dev-order-queue",
+  "sqsDispatched": true,
+  "messageId": "62c74d83-9e33-4903-ba6e-90b5c49ed47d",
+  "kmsEncrypted": true,
+  "podIdentity": "Active (sre-platform-dev-app-role)"
+}
+```
+
+#### 5. Kiểm tra Nhật ký Xử lý của Payment Worker (`/api/worker/stats`)
+```bash
+curl -s https://shop.dev.devopsss.site/api/worker/stats
+```
+**Kết quả mong đợi:**
+```json
+{
+  "worker": "payment-worker",
+  "isPolling": true,
+  "messagesProcessed": 6,
+  "lastProcessed": {
+    "messageId": "62c74d83-9e33-4903-ba6e-90b5c49ed47d",
+    "orderId": "test-ord-0064"
+  },
+  "recentLogs": [
+    "🗑️ Deleted message from SQS queue",
+    "✔ Updated order in PostgreSQL to status=PAID_VIA_SQS_WORKER",
+    "📬 Consumed message from SQS"
+  ]
+}
+```
+
+#### 6. Kiểm tra Cơ chế Cache-Aside (Cache Hit vs Cache Miss trên Redis)
+```bash
+# Lần 1: Cache Miss -> Đọc DB và nạp Redis Cache
+curl -s https://shop.dev.devopsss.site/api/orders | grep -o '"source":"[^"]*"'
+
+# Lần 2 (ngay sau đó): Cache Hit -> Đọc trực tiếp từ ElastiCache Redis (< 2ms)
+curl -s https://shop.dev.devopsss.site/api/orders | grep -o '"source":"[^"]*"'
+```
+**Kết quả mong đợi:**
+- Lần 1: `"source":"POSTGRESQL_RDS (Cache Miss -> DB Queried & Cached)"`
+- Lần 2: `"source":"ELASTICACHE_REDIS (Cache Hit)"`
 
 ---
 
@@ -143,16 +199,17 @@ Lưu lại nội dung sau vào hồ sơ nghiệm thu:
 
 ```text
 === RELIABILITYSHOP END-TO-END SMOKE TEST REPORT ===
-Timestamp:            2026-10-21T02:25:00Z
-Target Application:   reliability-shop-dev (v1.0.0)
-Public URL:           https://shop.dev.sreplatform.yourdomain.com
-GitOps Sync Status:   SYNCED / HEALTHY
+Timestamp:            2026-11-03T03:30:00Z
+Target Application:   reliability-shop (GitOps v1.0.5)
+Storefront URL:       https://shop.dev.devopsss.site
+Argo CD URL:          https://argocd.dev.devopsss.site
+Shared ALB:           k8s-sreplatform-5136128a97 (Active)
+GitOps Sync Status:   SYNCED / HEALTHY (Argo CD v2.11.3)
 Secrets Sync:         CONFIRMED (ESO synced from AWS Secrets Manager)
-Target Group Health:  2/2 Pod IPs Healthy in ap-southeast-1a & 1b
-API Endpoint Check:   HTTP/2 200 OK (p95 Latency = 18.2 ms)
-Database Write Test:  CONFIRMED (Order written to PostgreSQL 16)
-Async Queue Test:     CONFIRMED (Message pushed to SQS, consumed by Worker)
-Cache Test:           CONFIRMED (Order cache entry saved in Redis)
+Target Group Health:  100% Targets Healthy (Frontend & Argo CD)
+PostgreSQL 16.9:      CONFIRMED (Query Latency = 3 ms)
+ElastiCache Redis:    CONFIRMED (TLSv1.3 + Redis AUTH, Cache-Aside Verified)
+AWS SQS Queue:        CONFIRMED (Real MessageId dispatched & consumed)
 Smoke Test Decision:  PASSED (All systems nominal)
 ```
 

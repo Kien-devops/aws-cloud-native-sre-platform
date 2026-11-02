@@ -68,49 +68,91 @@ kubectl wait --for=condition=Available deployment/argocd-repo-server -n argocd -
 
 ---
 
-### Bước 3: Lấy Mật khẩu Mặc định và Xoay vòng Bảo mật (Credential Rotation)
+### Bước 3: Cấu hình Argo CD Server chạy sau ALB Ingress (Insecure Mode)
 
-1. **Lấy mật khẩu khởi tạo ngẫu nhiên:**
-   ```bash
-   ARGO_INIT_PWD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
-   echo "Initial Password: $ARGO_INIT_PWD"
-   ```
-2. **Lưu mật khẩu mới vào AWS Secrets Manager:**
-   Tạo một mật khẩu quản trị mới cực mạnh (tối thiểu 20 ký tự):
-   ```bash
-   NEW_ADMIN_PWD="SRE-Platform-ArgoCD-Dev-2026!Secured"
-   
-   # Lưu vào AWS Secrets Manager
-   aws secretsmanager create-secret \
-     --name /sre-platform/dev/argocd/admin \
-     --secret-string "{\"username\":\"admin\",\"password\":\"$NEW_ADMIN_PWD\"}" \
-     --region ap-southeast-1
-   ```
-3. **Cập nhật mật khẩu admin trong Argo CD:**
-   - Sử dụng `argocd` CLI hoặc hash mật khẩu bcrypt để cập nhật vào Secret `argocd-secret`.
-4. **Xóa bỏ Secret ban đầu:**
-   ```bash
-   kubectl -n argocd delete secret argocd-initial-admin-secret
-   ```
-   > [!IMPORTANT]
-   > Xóa `argocd-initial-admin-secret` là khuyến cáo bảo mật cấp cao của Argo Project nhằm vô hiệu hóa cửa hậu mật khẩu mặc định.
+Vì Application Load Balancer đảm nhận nhiệm vụ chấm dứt TLS (**TLS Termination**) bằng chứng chỉ ACM tại cổng 443 và chuyển tiếp HTTP xuống Pod, ta cần cấu hình `argocd-server` chạy ở chế độ không ép buộc mã hóa nội bộ (`server.insecure: "true"`):
+
+```bash
+# Cập nhật ConfigMap tham số lệnh của Argo CD
+kubectl patch cm argocd-cmd-params-cm -n argocd --type merge -p '{"data":{"server.insecure":"true"}}'
+
+# Khởi động lại deployment argocd-server để nhận cấu hình mới
+kubectl rollout restart deploy argocd-server -n argocd
+kubectl rollout status deploy argocd-server -n argocd --timeout=120s
+```
 
 ---
 
-### Bước 4: Mở Giao diện Quản trị Argo CD Web UI (Local Secure Tunnel)
+### Bước 4: Triển khai Ingress cho Argo CD gia nhập Shared ALB (`sre-platform`)
 
-Thiết lập đường hầm Port-Forward từ máy trạm:
+Tạo file manifest Ingress cho Argo CD tại `gitops/platform/ingress/argocd-ingress.yaml`:
 
-```bash
-kubectl port-forward svc/argocd-server -n argocd 8080:443
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server-ingress
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-server-ingress
+    app.kubernetes.io/part-of: argocd
+  annotations:
+    kubernetes.io/ingress.class: alb
+    # GIA NHẬP NHÓM INGRESS DÙNG CHUNG ALB (FinOps Shared Ingress)
+    alb.ingress.kubernetes.io/group.name: sre-platform
+    alb.ingress.kubernetes.io/group.order: "20"
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/security-groups: sg-067f16ca5bd986a83
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-southeast-1:620306387033:certificate/6af0c1dd-cbf4-4560-84b7-51e7cda7a69a
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/success-codes: '200'
+spec:
+  ingressClassName: alb
+  rules:
+    - host: argocd.dev.devopsss.site
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 80
 ```
 
-1. Mở trình duyệt web và truy cập địa chỉ: `https://localhost:8080`.
-2. Trình duyệt có thể cảnh báo Self-Signed Certificate -> Nhấp **Advanced** -> **Proceed to localhost**.
-3. **Đăng nhập:**
+Áp dụng manifest vào cluster:
+```bash
+kubectl apply -f gitops/platform/ingress/argocd-ingress.yaml
+```
+
+---
+
+### Bước 5: Cấu hình Route 53 và Đăng nhập Bảng điều khiển Argo CD Web UI
+
+1. **Tạo Route 53 Alias Record cho `argocd.dev.devopsss.site`:**
+   Trỏ tên miền `argocd.dev.devopsss.site` về DNS name của Shared ALB (`k8s-sreplatform-...`).
+
+2. **Lấy mật khẩu đăng nhập ban đầu của tài khoản `admin`:**
+   ```bash
+   ARGO_PWD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+   echo "Argo CD Admin Password: $ARGO_PWD"
+   ```
+
+3. **Mở trình duyệt truy cập:**
+   - **URL:** `https://argocd.dev.devopsss.site`
    - **Username:** `admin`
-   - **Password:** `<Mật khẩu mới đã lưu trong Secrets Manager>`
-4. Giao diện trang chủ Argo CD xuất hiện với bảng quản lý ứng dụng (Applications Dashboard) sẵn sàng nhận kết nối.
+   - **Password:** `<Chuỗi mật khẩu vừa lấy ở trên>`
+4. Giao diện trang chủ Argo CD xuất hiện với chứng chỉ SSL màu xanh hợp lệ.
 
 ---
 
