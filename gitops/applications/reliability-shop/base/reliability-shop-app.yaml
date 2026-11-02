@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/frontend:git-v1.0.0
+          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/frontend:git-v1.0.1
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -90,7 +90,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/order-service:git-v1.0.0
+          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/order-service:git-v1.0.2
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -378,3 +378,4 @@ spec:
                 name: frontend
                 port:
                   number: 80
+
