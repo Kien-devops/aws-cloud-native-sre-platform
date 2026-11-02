@@ -1,10 +1,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: sre-platform-root
+  name: platform-infrastructure
   namespace: argocd
   labels:
-    app.kubernetes.io/name: sre-platform-root
+    app.kubernetes.io/name: platform-infrastructure
     app.kubernetes.io/part-of: sre-platform
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: https://github.com/Kien-devops/aws-cloud-native-sre-platform.git
     targetRevision: HEAD
-    path: gitops/bootstrap
+    path: gitops/platform
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
@@ -23,4 +23,29 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: reliability-shop
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: reliability-shop
+    app.kubernetes.io/part-of: sre-platform
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: reliability-shop
+  source:
+    repoURL: https://github.com/Kien-devops/aws-cloud-native-sre-platform.git
+    targetRevision: HEAD
+    path: gitops/applications/reliability-shop/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: reliability-shop
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
