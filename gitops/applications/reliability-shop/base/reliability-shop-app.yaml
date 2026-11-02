@@ -16,9 +16,10 @@ spec:
       labels:
         app.kubernetes.io/name: frontend
     spec:
+      serviceAccountName: reliability-shop-sa
       containers:
         - name: app
-          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/frontend:git-v1.0.1
+          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/frontend:git-v1.0.2
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -88,9 +89,10 @@ spec:
       labels:
         app.kubernetes.io/name: order-service
     spec:
+      serviceAccountName: reliability-shop-sa
       containers:
         - name: app
-          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/order-service:git-v1.0.2
+          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/order-service:git-v1.0.4
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -159,6 +161,7 @@ spec:
       labels:
         app.kubernetes.io/name: inventory-service
     spec:
+      serviceAccountName: reliability-shop-sa
       containers:
         - name: app
           image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/inventory-service:git-v1.0.0
@@ -227,6 +230,7 @@ spec:
       labels:
         app.kubernetes.io/name: auth-service
     spec:
+      serviceAccountName: reliability-shop-sa
       containers:
         - name: app
           image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/auth-service:git-v1.0.0
@@ -295,6 +299,7 @@ spec:
       labels:
         app.kubernetes.io/name: payment-worker
     spec:
+      serviceAccountName: reliability-shop-sa
       containers:
         - name: app
           image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/payment-worker:git-v1.0.0

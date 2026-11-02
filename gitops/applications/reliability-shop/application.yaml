@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: reliability-shop
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: reliability-shop
+    env: dev
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Kien-devops/aws-cloud-native-sre-platform.git
+    targetRevision: HEAD
+    path: gitops/applications/reliability-shop/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: reliability-shop
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
