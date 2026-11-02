@@ -33,3 +33,4 @@ spec:
   namespaceResourceWhitelist:
     - group: '*'
       kind: '*'
+
