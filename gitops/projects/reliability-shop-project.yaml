@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: reliability-shop
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: sre-platform
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Restricted tenancy project for ReliabilityShop application workloads
+  sourceRepos:
+    - 'https://github.com/Kien-devops/aws-cloud-native-sre-platform.git'
+    - 'https://github.com/Kien-devops/app3.git'
+  destinations:
+    - namespace: reliability-shop
+      server: https://kubernetes.default.svc
+  # STRICT SECURITY: Deny all cluster-scoped resources for application project
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - group: ''
+      kind: '*'
+    - group: 'apps'
+      kind: '*'
+    - group: 'networking.k8s.io'
+      kind: '*'
+    - group: 'external-secrets.io'
+      kind: '*'
+    - group: 'argoproj.io'
+      kind: '*'
