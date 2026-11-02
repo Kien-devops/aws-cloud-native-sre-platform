@@ -1,0 +1,35 @@
+version: 1
+status: proposed
+window: 30d
+services:
+  - name: api-gateway
+    availability_target: 0.999
+    latency_target: 0.95
+    latency_threshold_ms: 300
+  - name: auth-service
+    availability_target: 0.999
+    latency_target: 0.95
+    latency_threshold_ms: 300
+  - name: order-service
+    availability_target: 0.999
+    latency_target: 0.95
+    latency_threshold_ms: 300
+  - name: inventory-service
+    availability_target: 0.999
+    latency_target: 0.95
+    latency_threshold_ms: 300
+  - name: payment-service
+    availability_target: 0.999
+    latency_target: 0.95
+    latency_threshold_ms: 300
+eligibility:
+  metric: http_server_requests_seconds_count
+  exclude_routes: [/health, /ready, /metrics]
+  exclude_status_codes: ["4xx"]
+  good_status: "<500"
+  low_traffic_min_requests_5m: 10
+measurement:
+  availability: good_requests / eligible_requests
+  latency: requests_under_threshold / eligible_requests
+  missing_telemetry: unknown
+  no_runtime_evidence_means: NOT_MEASURED

@@ -1,0 +1,62 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sre-slo-recording-and-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: sre-platform
+    prometheus: k8s
+    role: alert-rules
+spec:
+  groups:
+    - name: sre.slo.recording
+      interval: 30s
+      rules:
+        - record: sre:http_requests:eligible_rate5m
+          expr: |
+            sum by (service) (rate(http_server_requests_seconds_count{route!~"/health|/ready|/metrics",status_code!~"4.."}[5m]))
+        - record: sre:http_requests:bad_rate5m
+          expr: |
+            sum by (service) (rate(http_server_requests_seconds_count{route!~"/health|/ready|/metrics",status_code=~"5.."}[5m]))
+        - record: sre:http_requests:error_ratio5m
+          expr: |
+            sre:http_requests:bad_rate5m / clamp_min(sre:http_requests:eligible_rate5m, 1e-9)
+        - record: sre:http_requests:eligible_rate1h
+          expr: |
+            sum by (service) (rate(http_server_requests_seconds_count{route!~"/health|/ready|/metrics",status_code!~"4.."}[1h]))
+        - record: sre:http_requests:bad_rate1h
+          expr: |
+            sum by (service) (rate(http_server_requests_seconds_count{route!~"/health|/ready|/metrics",status_code=~"5.."}[1h]))
+        - record: sre:http_requests:error_ratio1h
+          expr: |
+            sre:http_requests:bad_rate1h / clamp_min(sre:http_requests:eligible_rate1h, 1e-9)
+        - record: sre:http_requests:latency_good_ratio5m
+          expr: |
+            sum by (service) (rate(http_server_requests_seconds_bucket{route!~"/health|/ready|/metrics",status_code!~"4..",le="0.3"}[5m])) / clamp_min(sre:http_requests:eligible_rate5m, 1e-9)
+        - record: sre:slo:availability30d
+          expr: |
+            1 - (sum by (service) (increase(http_server_requests_seconds_count{route!~"/health|/ready|/metrics",status_code=~"5.."}[30d])) / clamp_min(sum by (service) (increase(http_server_requests_seconds_count{route!~"/health|/ready|/metrics",status_code!~"4.."}[30d])), 1))
+        - record: sre:slo:error_budget_remaining
+          expr: 1 - ((1 - sre:slo:availability30d) / 0.001)
+    - name: sre.slo.burn-rate
+      rules:
+        - alert: SLOFastBurn
+          expr: |
+            sre:http_requests:eligible_rate5m > 0.01
+            and sre:http_requests:error_ratio5m / 0.001 > 14.4
+            and sre:http_requests:error_ratio1h / 0.001 > 14.4
+          for: 2m
+          labels: {severity: critical, slo: availability}
+          annotations:
+            summary: "{{ $labels.service }} is consuming availability error budget rapidly"
+            runbook_ref: sre/runbooks/common-failures.md#high-http-5xx
+        - alert: SLOSlowBurn
+          expr: |
+            sre:http_requests:eligible_rate5m > 0.01
+            and sre:http_requests:error_ratio5m / 0.001 > 6
+            and sre:http_requests:error_ratio1h / 0.001 > 6
+          for: 10m
+          labels: {severity: warning, slo: availability}
+          annotations:
+            summary: "{{ $labels.service }} has sustained availability burn"
+            runbook_ref: sre/runbooks/common-failures.md#high-http-5xx
