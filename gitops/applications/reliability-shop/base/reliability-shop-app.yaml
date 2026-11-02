@@ -19,7 +19,7 @@ spec:
       serviceAccountName: reliability-shop-sa
       containers:
         - name: app
-          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/frontend:git-v1.0.2
+          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/frontend:git-v1.0.3
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -92,7 +92,7 @@ spec:
       serviceAccountName: reliability-shop-sa
       containers:
         - name: app
-          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/order-service:git-v1.0.4
+          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/order-service:git-v1.0.5
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -302,7 +302,7 @@ spec:
       serviceAccountName: reliability-shop-sa
       containers:
         - name: app
-          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/payment-worker:git-v1.0.0
+          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/payment-worker:git-v1.0.1
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
