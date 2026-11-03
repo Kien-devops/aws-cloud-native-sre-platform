@@ -409,17 +409,70 @@ pod "otlp-test" deleted from default namespace
 
 ---
 
-## 6. Điều kiện hoàn thành Gate (Gate Check)
+## 6. Cấu hình OpenTelemetry Auto-Instrumentation cho Ứng dụng (Application Telemetry Export)
+
+Để các microservice trong namespace `reliability-shop` (`frontend`, `order-service`, `inventory-service`, `auth-service`, `payment-worker`) tự động xuất Metrics (Node.js runtime, HTTP latency, DB connections) và Distributed Traces sang OpenTelemetry Collector mà không cần can thiệp code ứng dụng (Zero-Code Auto-Instrumentation):
+
+### 6.1. Bổ sung cấu hình OTLP vào ConfigMap `app-config`
+Trong file `gitops/applications/reliability-shop/base/kustomization.yaml`:
+```yaml
+configMapGenerator:
+  - name: app-config
+    namespace: reliability-shop
+    literals:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.monitoring.svc.cluster.local:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - NODE_OPTIONS=--require /otel-auto-instrumentation/autoinstrumentation.js
+```
+
+### 6.2. Gắn InitContainer OTel Auto-Instrumentation vào Pod Template
+Trong `gitops/applications/reliability-shop/base/reliability-shop-app.yaml`, khai báo `initContainers` và `volumeMounts` cho từng deployment:
+```yaml
+      initContainers:
+        - name: opentelemetry-auto-instrumentation
+          image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:latest
+          command: ["cp", "-r", "/autoinstrumentation/.", "/otel-auto-instrumentation"]
+          volumeMounts:
+            - name: opentelemetry-auto-instrumentation
+              mountPath: /otel-auto-instrumentation
+      containers:
+        - name: app
+          envFrom:
+            - configMapRef:
+                name: app-config
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: "<tên-service-ví-dụ-order-service>"
+          resources:
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: opentelemetry-auto-instrumentation
+              mountPath: /otel-auto-instrumentation
+      volumes:
+        - name: opentelemetry-auto-instrumentation
+          emptyDir: {}
+```
+
+Sau khi áp dụng GitOps và khởi động lại Pods, OTel Collector ngay lập tức tiếp nhận các metric `otel_http_server_duration_milliseconds_*` và các spans `pg.query`, `http.request` phân tán.
+
+---
+
+## 7. Điều kiện hoàn thành Gate (Gate Check)
 
 - [x] OpenTelemetry Collector Deployments đạt trạng thái `Ready` (2/2 pods).
 - [x] Các cổng OTLP `4317` (gRPC) và `4318` (HTTP) mở và lắng nghe bên trong cluster.
 - [x] Processor `memory_limiter` và `transform` hoạt động bình thường, bảo đảm an toàn dữ liệu và chống OOM.
 - [x] Cổng metric `8889` sẵn sàng cho Prometheus scrape ở bài 07.02.
 - [x] Thử nghiệm gửi trace mẫu OTLP thành công với HTTP 200 OK.
+- [x] Toàn bộ workloads `reliability-shop` được gắn Auto-Instrumentation và tự động stream telemetry qua OTLP.
 
 ---
 
-## 7. Dọn dẹp tài nguyên (Cleanup)
+## 8. Dọn dẹp tài nguyên (Cleanup)
 
 - Giữ nguyên OTel Collector để phục vụ cho các bài tiếp theo: Prometheus (07.02) và Loki/Tempo (07.03).
 - Khi kết thúc toàn bộ platform, lệnh dọn dẹp: `kubectl delete namespace monitoring`.

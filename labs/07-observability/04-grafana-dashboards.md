@@ -167,7 +167,7 @@ data:
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "prometheus" },
-              "expr": "(1 - (sum(rate(http_requests_total{status=~\"5..\"}[30d])) or vector(0)) / (sum(rate(http_requests_total[30d])) or vector(1))) * 100",
+              "expr": "(1 - (sum(rate(otel_http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[30d])) or sum(rate(http_requests_total{status=~\"5..\"}[30d])) or vector(0)) / (sum(rate(otel_http_server_duration_milliseconds_count[30d])) or sum(rate(http_requests_total[30d])) or vector(1))) * 100",
               "legendFormat": "SLI Availability"
             }
           ]
@@ -195,7 +195,7 @@ data:
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "prometheus" },
-              "expr": "clamp_min((1 - ((sum(increase(http_requests_total{status=~\"5..\"}[30d])) or vector(0)) / (((sum(increase(http_requests_total[30d])) or vector(1))) * 0.001))) * 100, 0)",
+              "expr": "clamp_min((1 - ((sum(increase(otel_http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[30d])) or sum(increase(http_requests_total{status=~\"5..\"}[30d])) or vector(0)) / (((sum(increase(otel_http_server_duration_milliseconds_count[30d])) or sum(increase(http_requests_total[30d])) or vector(1))) * 0.001))) * 100, 0)",
               "legendFormat": "Remaining Budget"
             }
           ]
@@ -214,7 +214,7 @@ data:
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "prometheus" },
-              "expr": "sum(rate(http_requests_total[1m])) or vector(0)",
+              "expr": "sum(rate(otel_http_server_duration_milliseconds_count[1m])) or sum(rate(http_requests_total[1m])) or vector(0)",
               "legendFormat": "Total RPS"
             }
           ]
@@ -239,7 +239,7 @@ data:
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "prometheus" },
-              "expr": "sum(rate(http_requests_total{status=~\"5..\"}[1m])) or vector(0)",
+              "expr": "sum(rate(otel_http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[1m])) or sum(rate(http_requests_total{status=~\"5..\"}[1m])) or vector(0)",
               "legendFormat": "5xx RPS"
             }
           ]
@@ -265,7 +265,7 @@ data:
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "prometheus" },
-              "expr": "((sum(rate(http_requests_total{status=~\"5..\"}[1h])) or vector(0)) / (sum(rate(http_requests_total[1h])) or vector(1))) / 0.001",
+              "expr": "((sum(rate(otel_http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[1h])) or sum(rate(http_requests_total{status=~\"5..\"}[1h])) or vector(0)) / (sum(rate(otel_http_server_duration_milliseconds_count[1h])) or sum(rate(http_requests_total[1h])) or vector(1))) / 0.001",
               "legendFormat": "Burn Rate (1h Window)"
             }
           ]
@@ -283,17 +283,17 @@ data:
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "prometheus" },
-              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+              "expr": "(histogram_quantile(0.99, sum(rate(otel_http_server_duration_milliseconds_bucket[5m])) by (le)) / 1000) or histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
               "legendFormat": "p99 Latency"
             },
             {
               "datasource": { "type": "prometheus", "uid": "prometheus" },
-              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+              "expr": "(histogram_quantile(0.95, sum(rate(otel_http_server_duration_milliseconds_bucket[5m])) by (le)) / 1000) or histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
               "legendFormat": "p95 Latency"
             },
             {
               "datasource": { "type": "prometheus", "uid": "prometheus" },
-              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+              "expr": "(histogram_quantile(0.50, sum(rate(otel_http_server_duration_milliseconds_bucket[5m])) by (le)) / 1000) or histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
               "legendFormat": "p50 Latency"
             }
           ]
