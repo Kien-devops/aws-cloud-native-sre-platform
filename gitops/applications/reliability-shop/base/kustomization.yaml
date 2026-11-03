@@ -24,6 +24,11 @@ configMapGenerator:
       - REDIS_HOST=master.sre-platform-dev-redis.qspmd1.apse1.cache.amazonaws.com
       - REDIS_PORT=6379
       - REDIS_TLS=true
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.monitoring.svc.cluster.local:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - NODE_OPTIONS=--require /otel-auto-instrumentation/autoinstrumentation.js
 
 images:
   - name: reliabilityshop/frontend

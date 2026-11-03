@@ -1,6 +1,6 @@
 # 07.02 — Thiết lập Prometheus, ServiceMonitors và Quy tắc Cảnh báo Tốc độ Tiêu hao Ngân sách Lỗi (Burn-Rate Alerting)
 
-> **Trạng thái:** Hướng dẫn thực hành chi tiết cấu hình Prometheus, Alertmanager và SRE Multi-Burn-Rate Rules.  
+> **Trạng thái:** Đã triển khai và kiểm chứng thực tế trên EKS Cluster (DEPLOYED & VERIFIED).<br>
 > **Áp dụng cho:** Thu thập chỉ số RED/USE, tính toán độ tiêu hao Error Budget và định tuyến cảnh báo sự cố có độ trễ thấp.
 
 ---
@@ -31,13 +31,58 @@
 
 ---
 
-## 3. Các bước Khai báo Chi tiết (Manifest Walkthrough)
+## 3. Các bước Khai báo Chi tiết (Step-by-Step Walkthrough)
 
-### Bước 1: Khai báo ServiceMonitor Scrape Metrics từ OTel Collector
+### Bước 1: Cài đặt Prometheus Stack qua Helm (`kube-prometheus-stack`)
 
-Tạo file `observability/prometheus/otel-servicemonitor.yaml`:
+Để sử dụng được các Custom Resources (`ServiceMonitor`, `PrometheusRule`), trước tiên chúng ta triển khai `kube-prometheus-stack` vào namespace `monitoring`:
 
-```yaml
+```bash
+# 1. Thêm Helm repo chính thức của Prometheus Community
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+# 2. Cài đặt Prometheus và Alertmanager với cấu hình tối ưu tài nguyên cho môi trường Dev
+cat << 'EOF' > /tmp/prometheus-values.yaml
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+# Tạm thời tắt Grafana (Grafana sẽ được triển khai cùng Dashboards as Code ở bài 07.04)
+grafana:
+  enabled: false
+EOF
+
+helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  --values /tmp/prometheus-values.yaml
+```
+
+---
+
+### Bước 2: Khai báo ServiceMonitor Scrape Metrics từ OTel Collector
+
+Sau khi Operator đã sẵn sàng, chúng ta cấu hình `ServiceMonitor` để Prometheus tự động cào metrics từ cổng `8889` của `otel-collector` cứ mỗi 15 giây:
+
+```bash
+cat << 'EOF' | kubectl apply -f -
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -53,15 +98,17 @@ spec:
     - port: prometheus-metrics
       interval: 15s
       path: /metrics
+EOF
 ```
 
 ---
 
-### Bước 2: Khai báo Quy tắc Cảnh báo Multi-Burn-Rate (SLO Alert Rules)
+### Bước 3: Khai báo Quy tắc Cảnh báo Multi-Burn-Rate (SLO Alert Rules)
 
-Tạo file `observability/prometheus/slo-burn-rate-rules.yaml`:
+Áp dụng quy tắc cảnh báo Google SRE Burn-Rate vào Kubernetes thông qua `PrometheusRule`:
 
-```yaml
+```bash
+cat << 'EOF' | kubectl apply -f -
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -103,7 +150,7 @@ spec:
           annotations:
             summary: "Order Service is burning error budget at 14.4x rate"
             description: "High error rate ({{ $value | humanizePercentage }}) detected. At this burn rate, 2% of the monthly error budget will be consumed in 1 hour."
-            runbook_url: "https://github.com/my-org/aws-cloud-native-sre-platform/blob/main/sre/runbooks/high-error-rate.md"
+            runbook_url: "https://github.com/Kien-devops/aws-cloud-native-sre-platform/blob/main/sre/runbooks/high-error-rate.md"
 
         # CẢNH BÁO 2: MEDIUM BURN RATE (Burn Rate 6x - Tiêu hao 5% ngân sách trong 6h)
         - alert: OrderServiceMediumBurnRate
@@ -121,80 +168,78 @@ spec:
           annotations:
             summary: "Order Service is burning error budget at 6x rate"
             description: "Persistent error degradation detected over the last 6 hours."
-            runbook_url: "https://github.com/my-org/aws-cloud-native-sre-platform/blob/main/sre/runbooks/high-error-rate.md"
+            runbook_url: "https://github.com/Kien-devops/aws-cloud-native-sre-platform/blob/main/sre/runbooks/high-error-rate.md"
+EOF
 ```
 
 ---
 
-### Bước 3: Cấu hình Alertmanager Routing và Inhibition Rules
+### Bước 4: Cấu hình Alertmanager Routing và Inhibition Rules
 
-Tạo file `observability/alertmanager/alertmanager-config.yaml`:
-
-```yaml
-global:
-  resolve_timeout: 5m
-
-route:
-  group_by: ['alertname', 'service', 'severity']
-  group_wait: 30s
-  group_interval: 5m
-  repeat_interval: 4h
-  receiver: 'slack-notifications'
-  routes:
-    # ĐỊNH TUYẾN SỰ CỐ KHẨN CẤP (SEVERITY CRITICAL -> PAGERDUTY / ON-CALL)
-    - match:
-        severity: critical
-      receiver: 'pagerduty-critical'
-      continue: true
-
-receivers:
-  - name: 'slack-notifications'
-    slack_configs:
-      - channel: '#sre-platform-alerts'
-        send_resolved: true
-        title: '{{ template "slack.default.title" . }}'
-        text: '{{ template "slack.default.text" . }}'
-
-  - name: 'pagerduty-critical'
-    pagerduty_configs:
-      - service_key: 'dummy-test-key'
-        severity: 'critical'
-
-inhibit_rules:
-  # NẾU TOÀN BỘ NODE ĐÃ CHẾT, ẨN CÁC CẢNH BÁO VỀ POD CRASH ĐỂ TRÁNH ALERT STORM
-  - source_match:
-      alertname: 'NodeDown'
-    target_match:
-      alertname: 'PodCrashLooping'
-    equal: ['node']
-```
-
----
-
-## 4. Xác minh Thực tế từ Terminal (Verification)
+Alertmanager mặc định được cấu hình thông qua Secret hoặc `AlertmanagerConfig`. Dưới đây là cấu hình định tuyến thông báo theo độ nghiêm trọng (`critical` -> On-call, `warning` -> Ticket):
 
 ```bash
-# 1. Kiểm tra trạng thái Prometheus Operator và Alertmanager
-kubectl get pods -n monitoring -l "app.kubernetes.io/name in (prometheus,alertmanager)"
-
-# 2. Truy cập Prometheus Web UI qua Port-Forward
-kubectl port-forward svc/prometheus-k8s -n monitoring 9090:9090
+cat << 'EOF' | kubectl apply -f -
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: sre-alert-routing
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  route:
+    groupBy: ['alertname', 'service', 'severity']
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 4h
+    receiver: 'default-webhook'
+    routes:
+      - matchers:
+          - name: severity
+            value: critical
+        receiver: 'critical-pager'
+  receivers:
+    - name: 'default-webhook'
+      webhookConfigs:
+        - url: 'http://localhost:8080/webhook'
+          sendResolved: true
+    - name: 'critical-pager'
+      webhookConfigs:
+        - url: 'http://localhost:8080/pager'
+          sendResolved: true
+EOF
 ```
-
-1. Mở trình duyệt tại `http://localhost:9090`.
-2. Kiểm tra menu **Status** -> **Targets**:
-   - Tìm kiếm `otel-collector-monitor`: Xác nhận endpoint `8889` hiển thị **State: UP** (Màu xanh).
-3. Kiểm tra menu **Alerts**:
-   - Xác nhận quy tắc `OrderServiceFastBurnRate` và `OrderServiceMediumBurnRate` đang ở trạng thái **Inactive** (Màu xanh - hệ thống đang khỏe mạnh).
 
 ---
 
-## 5. Thử nghiệm Bắn Cảnh báo Giả lập (Alert Simulation)
+## 4. Xác minh Thực tế (Verification)
 
-Kiểm tra xem Alertmanager có tiếp nhận và phân loại đúng alert hay không bằng cách kích hoạt một alert giả lập qua API:
+### 4.1. Kiểm tra trạng thái Pods của Prometheus Stack:
+```bash
+kubectl get pods -n monitoring -l "app.kubernetes.io/name in (prometheus,alertmanager,prometheus-operator)"
+```
+
+**Kỳ vọng:** Các Pod `prometheus-prometheus-kube-prometheus-prometheus-0` và `alertmanager-prometheus-kube-prometheus-alertmanager-0` ở trạng thái `Running` (2/2 READY).
+
+---
+
+### 4.2. Kiểm tra Prometheus Targets cào metrics OTel Collector:
+```bash
+kubectl run prom-check --rm -i --tty --image=curlimages/curl --restart=Never -- \
+  curl -s http://prometheus-operated.monitoring.svc.cluster.local:9090/api/v1/targets | grep -o '"scrapePool":"serviceMonitor/monitoring/otel-collector-monitor/0"[^}]*'
+```
+**Kỳ vọng:** Trả về `"health":"up"`, xác nhận Prometheus đang cào chỉ số thành công từ `otel-collector:8889`.
+
+---
+
+## 5. Thử nghiệm Bắn Cảnh báo Giả lập (Alert Simulation Drill)
+
+Kiểm tra xem Alertmanager có tiếp nhận và phân loại đúng alert hay không bằng cách gửi một alert giả lập qua API nội bộ:
 
 ```bash
-curl -X POST http://localhost:9093/api/v2/alerts \
+kubectl run am-test --rm -i --tty --image=curlimages/curl --restart=Never -- \
+  curl -s -X POST http://alertmanager-operated.monitoring.svc.cluster.local:9093/api/v2/alerts \
   -H "Content-Type: application/json" \
   -d '[{
     "labels": {
@@ -204,24 +249,35 @@ curl -X POST http://localhost:9093/api/v2/alerts \
     },
     "annotations": {
       "summary": "This is a simulated critical outage test",
-      "runbook_url": "https://example.com/runbook"
+      "runbook_url": "https://github.com/Kien-devops/aws-cloud-native-sre-platform/blob/main/sre/runbooks/high-error-rate.md"
     }
   }]'
 ```
 
-Kiểm tra Alertmanager UI tại `http://localhost:9093`: Alert xuất hiện ngay lập tức trong bảng điều khiển và được gán nhãn `critical`.
+Xác minh alert đã vào bộ nhớ của Alertmanager bằng lệnh:
+```bash
+kubectl run am-check --rm -i --tty --image=curlimages/curl --restart=Never -- \
+  curl -s http://alertmanager-operated.monitoring.svc.cluster.local:9093/api/v2/alerts | grep -o '"alertname":"SimulatedOutageAlert"[^}]*'
+```
+
+**Bằng chứng phản hồi thực tế trên CloudShell:**
+```text
+"alertname":"SimulatedOutageAlert","service":"order-service","severity":"critical"
+```
+👉 Alertmanager ghi nhận cảnh báo `SimulatedOutageAlert` thành công với nhãn `severity: critical` và gắn kèm link runbook xử lý sự cố.
 
 ---
 
 ## 6. Điều kiện hoàn thành Gate (Gate Check)
 
-- [ ] Prometheus đang scrape thành công metrics từ OpenTelemetry Collector (Target UP).
-- [ ] Quy tắc cảnh báo Multi-Burn-Rate được nạp đầy đủ vào bộ nhớ của Prometheus.
-- [ ] Alertmanager đang chạy và định tuyến cảnh báo theo đúng nhãn `severity`.
-- [ ] Cảnh báo chứa đầy đủ thông tin mô tả và liên kết tới tài liệu hướng dẫn xử lý (Runbook).
+- [x] `kube-prometheus-stack` triển khai thành công trên namespace `monitoring` (Pods Prometheus, Alertmanager, Operator đều `Running`).
+- [x] `ServiceMonitor/otel-collector-monitor` được Prometheus nhận diện và scrape endpoint `8889` thành công (`Target UP`).
+- [x] `PrometheusRule/reliability-shop-slo-alerts` được nạp đầy đủ (Fast burn 14.4x và Medium burn 6x).
+- [x] Alertmanager tiếp nhận và phân loại cảnh báo theo đúng nhãn `severity: critical`.
+- [x] Mọi cảnh báo đều có liên kết Runbook hợp lệ phục vụ kỹ sư On-call.
 
 ---
 
 ## 7. Dọn dẹp tài nguyên (Cleanup)
 
-- Giữ nguyên stack giám sát để phục vụ việc xây dựng Dashboard ở bài 07.04 và kiểm thử k6 ở Module 09.
+- Giữ nguyên Prometheus và Alertmanager để phục vụ cho các bài tiếp theo: Grafana Dashboards as Code (07.04) và SLO Testing (09.02).

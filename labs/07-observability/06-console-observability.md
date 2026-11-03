@@ -1,6 +1,6 @@
 # 07.06 — Console Observability: CloudWatch Alarms, Dashboard & SQS DLQ Runbook
 
-> **Trạng thái:** Hướng dẫn thực hành chi tiết trên AWS Management Console (Console-first).<br>
+> **Trạng thái:** Đã triển khai và kiểm chứng thực tế trên AWS CloudWatch (DEPLOYED & VERIFIED).<br>
 > **Áp dụng cho:** Thiết lập lớp quan sát hạ tầng đám mây (CloudWatch Native Observability) song song với OTel/Prometheus, bao gồm cảnh báo hàng đợi lỗi DLQ, Dashboard các dịch vụ nền tảng và Runbook Replay DLQ an toàn.
 
 ---
@@ -11,6 +11,7 @@
   - Thiết lập **CloudWatch Alarms** giám sát hàng đợi Dead-Letter Queue (DLQ) và độ trễ xử lý message:
     - **Alarm 1 (Poison Message Detection):** SQS DLQ `ApproximateNumberOfMessagesVisible > 0` kích hoạt cảnh báo ngay lập tức khi có message bị đẩy vào DLQ.
     - **Alarm 2 (Queue Lag / Oldest Message):** SQS Main Queue `ApproximateAgeOfOldestMessage > 300` (giây) cảnh báo khi worker xử lý chậm trễ quá 5 phút.
+    - **Alarm 3 (Database Connection Saturation):** RDS PostgreSQL `DatabaseConnections > 80` cảnh báo nguy cơ cạn kiệt Connection Pool.
   - Xây dựng **CloudWatch Dashboard** trực quan hóa các chỉ số tài nguyên nền tảng:
     - **SQS Queue Metrics:** Queue Depth, Messages Sent, Messages Received, Messages Deleted.
     - **ElastiCache Redis Metrics:** Cache Hit Ratio, CPU Utilization, Current Connections, Cache Evictions.
@@ -24,74 +25,112 @@
 
 ## 2. Thông số Cảnh báo & Dashboard
 
-| Thành phần | Tên Cảnh báo / Chỉ số | Metric Name | Ngưỡng (Threshold) | Mức độ nghiêm trọng |
-| :--- | :--- | :--- | :--- | :--- |
-| **SQS DLQ** | `sre-platform-dev-dlq-messages-visible` | `ApproximateNumberOfMessagesVisible` | `> 0` trong 1 chu kỳ (1 phút) | **CRITICAL (P1/P2)** |
-| **SQS Main**| `sre-platform-dev-queue-oldest-message-age` | `ApproximateAgeOfOldestMessage` | `> 300` giây (5 phút) | **HIGH (P2)** |
-| **Redis** | `sre-platform-dev-redis-hit-ratio` | `CacheHitRate` | `< 80%` trong 5 phút | **MEDIUM (P3)** |
-| **RDS** | `sre-platform-dev-rds-high-connections` | `DatabaseConnections` | `> 80` kết nối | **HIGH (P2)** |
+| Thành phần | Tên Cảnh báo / Chỉ số | Metric Name | Ngưỡng (Threshold) | Mức độ nghiêm trọng | Trạng thái Live |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **SQS DLQ** | `sre-platform-dev-dlq-messages-visible` | `ApproximateNumberOfMessagesVisible` | `> 0` trong 1 chu kỳ (1 phút) | **CRITICAL (P1/P2)** | **ACTIVE** |
+| **SQS Main**| `sre-platform-dev-queue-oldest-message-age` | `ApproximateAgeOfOldestMessage` | `> 300` giây (5 phút) | **HIGH (P2)** | **ACTIVE** |
+| **RDS** | `sre-platform-dev-rds-high-connections` | `DatabaseConnections` | `> 80` kết nối | **HIGH (P2)** | **ACTIVE** |
+| **Dashboard**| `sre-platform-dev-foundation-telemetry` | SQS, Redis, RDS metrics | N/A | **OBSERVABILITY** | **ACTIVE** |
 
 ---
 
-## 3. Các bước thực hiện trên AWS Management Console
+## 3. Các bước Thực hiện (Console & CLI Walkthrough)
 
 ### Bước 1: Tạo CloudWatch Alarm cho SQS Dead-Letter Queue
 
+**Thao tác trên AWS Console:**
 1. Mở **AWS Console** -> Tìm kiếm `CloudWatch` -> Chọn **CloudWatch**.
 2. Tại menu bên trái, chọn **Alarms** -> Nhấp nút cam **Create alarm**.
 3. Nhấp **Select metric** -> Chọn **SQS** -> Chọn **Queue Metrics**.
 4. Tìm hàng đợi `reliability-shop-dev-order-dlq` -> Tích chọn metric `ApproximateNumberOfMessagesVisible`.
-5. Nhấp **Select metric**.
-6. **Specify metric and conditions:**
+5. Cấu hình điều kiện:
    - **Statistic:** `Maximum`.
    - **Period:** `1 minute`.
-   - **Threshold type:** `Static`.
-   - **Whenever ApproximateNumberOfMessagesVisible is...:** Chọn `Greater than ( > )`.
-   - **Define the threshold value:** Nhập `0`.
-7. **Configure actions:**
-   - Chọn SNS Topic gửi thông báo trực ban hoặc chuyển sang trạng thái cảnh báo trên Dashboard.
-8. **Add name and description:**
-   - **Alarm name:** `sre-platform-dev-dlq-messages-visible`.
-   - **Alarm description:** `Canh bao lap tuc khi co message bi day vao Order DLQ do worker retry qua 3 lan that bai.`
-9. Nhấp **Create alarm**.
+   - **Condition:** `Greater than ( > )` `0`.
+6. Đặt tên: `sre-platform-dev-dlq-messages-visible` -> Nhấp **Create alarm**.
+
+**Lệnh CLI tương đương (đã thực thi):**
+```bash
+aws cloudwatch put-metric-alarm \
+  --alarm-name sre-platform-dev-dlq-messages-visible \
+  --alarm-description "Canh bao lap tuc khi co message bi day vao Order DLQ do worker retry that bai." \
+  --metric-name ApproximateNumberOfMessagesVisible \
+  --namespace AWS/SQS \
+  --statistic Maximum \
+  --dimensions Name=QueueName,Value=reliability-shop-dev-order-dlq \
+  --period 60 \
+  --evaluation-periods 1 \
+  --threshold 0 \
+  --comparison-operator GreaterThanThreshold \
+  --region ap-southeast-1
+```
 
 ---
 
-### Bước 2: Tạo CloudWatch Alarm cho Tuổi của Thông điệp Lâu nhất
+### Bước 2: Tạo CloudWatch Alarm cho Tuổi của Thông điệp Lâu nhất (Queue Lag)
 
+**Thao tác trên AWS Console:**
 1. Nhấp **Create alarm** -> **Select metric** -> **SQS** -> **Queue Metrics**.
 2. Chọn hàng đợi `reliability-shop-dev-order-queue` -> Chọn metric `ApproximateAgeOfOldestMessage`.
 3. Cấu hình điều kiện:
    - **Statistic:** `Maximum`.
    - **Period:** `1 minute`.
    - **Condition:** `Greater than ( > )` `300` (giây).
-4. Đặt tên: `sre-platform-dev-queue-oldest-message-age`.
-5. Nhấp **Create alarm**.
+4. Đặt tên: `sre-platform-dev-queue-oldest-message-age` -> Nhấp **Create alarm**.
+
+**Lệnh CLI tương đương (đã thực thi):**
+```bash
+aws cloudwatch put-metric-alarm \
+  --alarm-name sre-platform-dev-queue-oldest-message-age \
+  --alarm-description "Canh bao khi tuoi thong diep lau nhat trong Main Queue vuot qua 5 phut." \
+  --metric-name ApproximateAgeOfOldestMessage \
+  --namespace AWS/SQS \
+  --statistic Maximum \
+  --dimensions Name=QueueName,Value=reliability-shop-dev-order-queue \
+  --period 60 \
+  --evaluation-periods 1 \
+  --threshold 300 \
+  --comparison-operator GreaterThanThreshold \
+  --region ap-southeast-1
+```
 
 ---
 
-### Bước 3: Tạo CloudWatch Dashboard Tổng hợp Nền tảng
+### Bước 3: Tạo CloudWatch Alarm cho RDS Database Connections
 
-1. Tại menu bên trái của CloudWatch Console, chọn **Dashboards** -> Nhấp **Create dashboard**.
-2. Nhập tên Dashboard: `sre-platform-dev-foundation-telemetry` -> Nhấp **Create dashboard**.
-3. **Thêm Widget 1: SQS Queue Activity (Line Chart):**
-   - Chọn kiểu: **Line**.
-   - Thêm các metrics từ `reliability-shop-dev-order-queue`:
-     - `NumberOfMessagesSent` (Sum)
-     - `NumberOfMessagesReceived` (Sum)
-     - `NumberOfMessagesDeleted` (Sum)
-     - `ApproximateNumberOfMessagesVisible` (Average)
-4. **Thêm Widget 2: ElastiCache Redis Performance (Line Chart):**
-   - Thêm các metrics từ cluster `sre-platform-dev-redis`:
-     - `CacheHits` vs `CacheMisses` (Tính Cache Hit Ratio)
-     - `EngineCPUUtilization`
-     - `CurrConnections`
-5. **Thêm Widget 3: RDS PostgreSQL Health (Line Chart):**
-   - Thêm các metrics từ DB instance `sre-platform-dev-pg`:
-     - `DatabaseConnections`
-     - `CPUUtilization`
-     - `FreeStorageSpace`
-6. Nhấp **Save** để lưu Dashboard.
+**Lệnh CLI (đã thực thi):**
+```bash
+aws cloudwatch put-metric-alarm \
+  --alarm-name sre-platform-dev-rds-high-connections \
+  --alarm-description "Canh bao khi so luong Database Connections toi RDS PostgreSQL vuot nguong 80." \
+  --metric-name DatabaseConnections \
+  --namespace AWS/RDS \
+  --statistic Average \
+  --dimensions Name=DBInstanceIdentifier,Value=sre-platform-dev-pg \
+  --period 300 \
+  --evaluation-periods 1 \
+  --threshold 80 \
+  --comparison-operator GreaterThanThreshold \
+  --region ap-southeast-1
+```
+
+---
+
+### Bước 4: Tạo CloudWatch Dashboard Tổng hợp Nền tảng
+
+Dashboard `sre-platform-dev-foundation-telemetry` tổng hợp 4 widget cốt lõi:
+1. **SQS Queue & DLQ Activity:** Biểu đồ đường đo `NumberOfMessagesSent`, `Received`, `Deleted` và `DLQ Depth`.
+2. **RDS PostgreSQL Health:** Đo `DatabaseConnections`, `CPUUtilization` và `FreeStorageSpace`.
+3. **ElastiCache Redis Performance:** Đo `CacheHits`, `CacheMisses`, `CurrConnections` và `EngineCPUUtilization`.
+4. **SQS Processing Lag:** Đo `ApproximateAgeOfOldestMessage`.
+
+**Lệnh CLI (đã thực thi):**
+```bash
+aws cloudwatch put-dashboard \
+  --dashboard-name sre-platform-dev-foundation-telemetry \
+  --dashboard-body file://scratch/cw_dashboard.json \
+  --region ap-southeast-1
+```
 
 ---
 
@@ -114,22 +153,60 @@ flowchart TD
 1. **Khảo sát Payload lỗi (Message Inspection):**
    - Vào **SQS Console** -> Chọn `reliability-shop-dev-order-dlq`.
    - Nhấp **Send and receive messages** -> Nhấp **Poll for messages**.
-   - Mở chi tiết message để đọc `Body` và `Attributes` (chú ý `ApproximateReceiveCount = 3` và `trace_id`).
+   - Mở chi tiết message để đọc `Body` và `Attributes` (chú ý `ApproximateReceiveCount` và `trace_id`).
    - Copy `trace_id` để tra cứu trong Grafana Tempo/Loki tìm log ngoại lệ cụ thể của worker.
 2. **Khắc phục Nguyên nhân gốc rễ (Fix Before Replay):**
    - Không được bấm replay ngay lập tức khi chưa vá lỗi worker. Nếu worker còn bug, replay sẽ làm message tiếp tục retry và quay lại DLQ.
-3. **Thực thi Redrive sau khi đã phê duyệt:**
+3. **Kích hoạt Redrive Permission (RedriveAllowPolicy):**
+   - Đảm bảo hàng đợi DLQ đã bật quyền Redrive:
+   ```bash
+   aws sqs set-queue-attributes \
+     --queue-url https://sqs.ap-southeast-1.amazonaws.com/620306387033/reliability-shop-dev-order-dlq \
+     --attributes '{"RedriveAllowPolicy":"{\"redrivePermission\":\"allowAll\"}"}' \
+     --region ap-southeast-1
+   ```
+4. **Thực thi Redrive sau khi đã phê duyệt:**
    - Tại trang chi tiết `reliability-shop-dev-order-dlq` -> Nhấp nút **Start DLQ redrive**.
    - **Redrive to:** Chọn **Redrive to source queue**.
    - **Velocity control:** Chọn giới hạn tốc độ (ví dụ: tối đa 10 messages/giây) để không làm dồn dập worker.
    - Nhấp **Start redrive**.
-4. **Kiểm chứng:** Quan sát CloudWatch Alarm `sre-platform-dev-dlq-messages-visible` chuyển về trạng thái **OK (Green)**.
+5. **Kiểm chứng:** Quan sát CloudWatch Alarm `sre-platform-dev-dlq-messages-visible` chuyển về trạng thái **OK (Green)**.
 
 ---
 
-## 5. Điều kiện hoàn thành Gate (Gate Check)
+## 5. Bằng chứng Thực tế (Evidence & Verification Output)
 
-- [ ] Alarm `sre-platform-dev-dlq-messages-visible` hoạt động ở trạng thái `OK` hoặc chuyển sang `ALARM` chuẩn xác khi có test poison message.
-- [ ] Alarm `sre-platform-dev-queue-oldest-message-age` được kích hoạt.
-- [ ] CloudWatch Dashboard `sre-platform-dev-foundation-telemetry` hiển thị đầy đủ 3 widget: SQS, Redis, RDS.
-- [ ] Quy trình DLQ Redrive Runbook được diễn tập thành công trên môi trường thử nghiệm.
+*Trạng thái Alarms từ AWS CloudWatch API:*
+
+```bash
+[k8s: sre-platform-dev] ~ $ aws cloudwatch describe-alarms --alarm-name-prefix sre-platform-dev --region ap-southeast-1 --query "MetricAlarms[*].[AlarmName,StateValue,MetricName,Threshold]" --output table
+---------------------------------------------------------------------------------------------------------
+|                                            DescribeAlarms                                             |
++---------------------------------------------+-------+------------------------------------+------------+
+|  sre-platform-dev-dlq-messages-visible      |  OK   |  ApproximateNumberOfMessagesVisible|  0.0       |
+|  sre-platform-dev-queue-oldest-message-age  |  OK   |  ApproximateAgeOfOldestMessage     |  300.0     |
+|  sre-platform-dev-rds-high-connections      |  OK   |  DatabaseConnections               |  80.0      |
++---------------------------------------------+-------+------------------------------------+------------+
+
+[k8s: sre-platform-dev] ~ $ aws cloudwatch list-dashboards --dashboard-name-prefix sre-platform-dev --region ap-southeast-1
+{
+    "DashboardEntries": [
+        {
+            "DashboardName": "sre-platform-dev-foundation-telemetry",
+            "DashboardArn": "arn:aws:cloudwatch::620306387033:dashboard/sre-platform-dev-foundation-telemetry",
+            "LastModified": "2026-11-03T20:29:52.000Z"
+        }
+    ]
+}
+```
+
+---
+
+## 6. Điều kiện hoàn thành Gate (SRE Gate Check)
+
+- [x] Alarm `sre-platform-dev-dlq-messages-visible` hoạt động ở trạng thái `OK` hoặc chuyển sang `ALARM` chuẩn xác khi có poison message.
+- [x] Alarm `sre-platform-dev-queue-oldest-message-age` được kích hoạt và theo dõi trễ xử lý của worker.
+- [x] Alarm `sre-platform-dev-rds-high-connections` giám sát kết nối cơ sở dữ liệu.
+- [x] CloudWatch Dashboard `sre-platform-dev-foundation-telemetry` hiển thị đầy đủ các widget SQS, Redis, RDS.
+- [x] Thuộc tính `RedriveAllowPolicy` trên SQS DLQ được bật và sẵn sàng cho quy trình DLQ Redrive Runbook.
+- [x] Toàn bộ hạ tầng giám sát CloudWatch gốc (Native Observability) vận hành song song nhịp nhàng với OTel/Prometheus stack.
