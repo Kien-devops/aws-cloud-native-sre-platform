@@ -1,0 +1,43 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - service-account.yaml
+  - external-secret.yaml
+  - reliability-shop-app.yaml
+  - ingress.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: app-config
+    namespace: reliability-shop
+    literals:
+      - NODE_ENV=production
+      - AWS_REGION=ap-southeast-1
+      - SQS_QUEUE_NAME=reliability-shop-dev-order-queue
+      - DB_HOST=sre-platform-dev-pg.c1ky6i8iomcn.ap-southeast-1.rds.amazonaws.com
+      - DB_PORT=5432
+      - DB_NAME=reliability_shop
+      - DB_SSL=true
+      - REDIS_HOST=master.sre-platform-dev-redis.qspmd1.apse1.cache.amazonaws.com
+      - REDIS_PORT=6379
+      - REDIS_TLS=true
+
+images:
+  - name: reliabilityshop/frontend
+    newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/frontend
+    digest: sha256:10acd5f07b766eb83faa7331b5f031215fa0a2e9dc9fc433378d23c3a8db3b23
+  - name: reliabilityshop/order-service
+    newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/order-service
+    digest: sha256:3f4e2ce308c92719ccf9337c4c18473a3f1e1f996ae2f59c8142bbcf844ffe02
+  - name: reliabilityshop/inventory-service
+    newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/inventory-service
+    digest: sha256:76ebb63a8c38bb182e49a9f3e909ac35060daa0d4447b2b97be52f3832a16d1f
+  - name: reliabilityshop/auth-service
+    newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/auth-service
+    digest: sha256:b7ae9bef2c7111bf0c3f341cc92dc826116959f2bd23e719d45289215262c613
+  - name: reliabilityshop/payment-worker
+    newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/payment-worker
+    digest: sha256:89b76569c67ed7c5dbe3b761fc9d6323884d16392486a6384239d1a6d8aa2359

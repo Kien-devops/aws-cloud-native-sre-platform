@@ -16,10 +16,9 @@ spec:
       labels:
         app.kubernetes.io/name: frontend
     spec:
-      serviceAccountName: reliability-shop-sa
       containers:
         - name: app
-          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/frontend:git-v1.0.3
+          image: reliabilityshop/frontend:bootstrap
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -31,6 +30,8 @@ spec:
               value: "http://inventory-service:8080"
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:8080"
+            - name: WORKER_SERVICE_URL
+              value: "http://payment-worker:8080"
           resources:
             requests:
               cpu: 50m
@@ -92,17 +93,30 @@ spec:
       serviceAccountName: reliability-shop-sa
       containers:
         - name: app
-          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/order-service:git-v1.0.5
+          image: reliabilityshop/order-service:bootstrap
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
               name: http
-          env:
-            - name: SQS_QUEUE_URL
-              value: "https://sqs.ap-southeast-1.amazonaws.com/620306387033/reliability-shop-dev-order-queue"
           envFrom:
-            - secretRef:
-                name: app-credentials
+            - configMapRef:
+                name: app-config
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: app-credentials
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-credentials
+                  key: DB_PASSWORD
+            - name: REDIS_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: app-credentials
+                  key: REDIS_AUTH
           resources:
             requests:
               cpu: 50m
@@ -161,17 +175,13 @@ spec:
       labels:
         app.kubernetes.io/name: inventory-service
     spec:
-      serviceAccountName: reliability-shop-sa
       containers:
         - name: app
-          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/inventory-service:git-v1.0.0
+          image: reliabilityshop/inventory-service:bootstrap
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
               name: http
-          envFrom:
-            - secretRef:
-                name: app-credentials
           resources:
             requests:
               cpu: 50m
@@ -230,17 +240,19 @@ spec:
       labels:
         app.kubernetes.io/name: auth-service
     spec:
-      serviceAccountName: reliability-shop-sa
       containers:
         - name: app
-          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/auth-service:git-v1.0.0
+          image: reliabilityshop/auth-service:bootstrap
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
               name: http
-          envFrom:
-            - secretRef:
-                name: app-credentials
+          env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: app-credentials
+                  key: JWT_SECRET
           resources:
             requests:
               cpu: 50m
@@ -302,17 +314,30 @@ spec:
       serviceAccountName: reliability-shop-sa
       containers:
         - name: app
-          image: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/payment-worker:git-v1.0.1
+          image: reliabilityshop/payment-worker:bootstrap
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
               name: http
-          env:
-            - name: SQS_QUEUE_URL
-              value: "https://sqs.ap-southeast-1.amazonaws.com/620306387033/reliability-shop-dev-order-queue"
           envFrom:
-            - secretRef:
-                name: app-credentials
+            - configMapRef:
+                name: app-config
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: app-credentials
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-credentials
+                  key: DB_PASSWORD
+            - name: REDIS_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: app-credentials
+                  key: REDIS_AUTH
           resources:
             requests:
               cpu: 50m
