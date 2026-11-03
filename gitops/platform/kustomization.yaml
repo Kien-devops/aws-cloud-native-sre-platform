@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - ingress
   - external-secrets
+  - monitoring

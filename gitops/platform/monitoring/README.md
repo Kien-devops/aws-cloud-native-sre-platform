@@ -1,41 +1,19 @@
-# Monitoring
+# Monitoring Platform GitOps
 
 ## Status
 
-`PLANNED` — chưa có manifest, Helm release hoặc controller được quản lý tại đây.
+`DEPLOYED & GITOPS ACTIVE` — Quản lý toàn bộ hạ tầng Observability bao gồm OpenTelemetry Collector, Grafana Loki, Grafana Tempo, Grafana Dashboards as Code, Ingress chia sẻ và Prometheus Alerting Rules.
 
-## Purpose
+## Components Managed
 
-Dự kiến quản lý metrics, logs, traces, dashboards và alert rules cho EKS.
+| Thành phần | Manifest | Loại (Kind) | Chức năng |
+| :--- | :--- | :--- | :--- |
+| **Namespace** | `namespace.yaml` | `Namespace` | Không gian tên cô lập `monitoring`. |
+| **OpenTelemetry Collector** | `otel-collector.yaml` | `ConfigMap`, `Deployment`, `Service` | Telemetry Hub tiếp nhận OTLP 4317/4318, xử lý batch, lọc dữ liệu nhạy cảm và export tới Tempo, Loki, Prometheus. |
+| **Loki & Tempo** | `loki-tempo.yaml` | `ConfigMap`, `Deployment`, `Service` | Lưu trữ Logs phân tán và Distributed Traces với local persistent storage. |
+| **Grafana Platform** | `grafana.yaml` | `ConfigMap` (Datasources/Dashboards), `Deployment`, `Service`, `Ingress` | Giao diện trực quan hóa SRE Dashboards as Code, Ingress chia sẻ ALB `sre-platform` tại `grafana.dev.devopsss.site`. |
+| **Prometheus Rules** | `prometheus-rules.yaml` | `ServiceMonitor`, `PrometheusRule`, `AlertmanagerConfig` | Cào metric OTel Collector 8889, Multi-Window Multi-Burn-Rate alerting và routing thông báo Pager/Webhook. |
 
-## Repository ownership
+## Verification
 
-Platform SRE sở hữu collectors/rules; application teams sở hữu service instrumentation và alert ownership.
-
-## Prerequisites
-
-Chọn stack/controller, storage/retention, namespace, CRD versions, scrape permissions và notification destination.
-
-## AWS/EKS integration
-
-Có thể tích hợp CloudWatch, S3 hoặc managed services; endpoint, IAM và data residency phải được thiết kế trước. Không giả định integration hiện đã hoạt động.
-
-## Security/IAM
-
-Least privilege cho collectors, encryption, tenant boundaries và log redaction bắt buộc. Không cấp cluster-admin mặc định.
-
-## Cost/operations
-
-Retention, log volume và trace sampling là cost drivers. Cần capacity, upgrade và runbook trước khi cài.
-
-## Enablement
-
-Chỉ thêm manifest sau khi có design, owner, IAM, SLO, rollback và review. `NOT_DEPLOYED`.
-
-## Validation
-
-Chưa có runtime target để kiểm tra. `Measured Result: NOT DEPLOYED`.
-
-## Rollback
-
-Khi được triển khai, revert Git và giữ dữ liệu theo retention policy; không xóa storage chỉ vì rollback controller.
+Toàn bộ tài nguyên được đồng bộ hóa tự động qua ArgoCD Application `platform-infrastructure`.
