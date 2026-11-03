@@ -1,19 +1,70 @@
-# Monitoring Platform GitOps
+# Observability & Monitoring Platform GitOps
 
-## Status
+## 1. Tổng quan & Triết lý Thiết kế
 
-`DEPLOYED & GITOPS ACTIVE` — Quản lý toàn bộ hạ tầng Observability bao gồm OpenTelemetry Collector, Grafana Loki, Grafana Tempo, Grafana Dashboards as Code, Ingress chia sẻ và Prometheus Alerting Rules.
+Thư mục này quản lý toàn bộ hạ tầng **Giám sát & Khả năng quan sát (Observability)** của nền tảng EKS theo chuẩn GitOps.
 
-## Components Managed
+Hệ thống được thiết kế theo quy tắc **Ordered Prefix (Tiền tố số thứ tự `00` - `07`)** phản ánh chính xác chu trình phụ thuộc khởi tạo tự nhiên của Kubernetes:
 
-| Thành phần | Manifest | Loại (Kind) | Chức năng |
-| :--- | :--- | :--- | :--- |
-| **Namespace** | `namespace.yaml` | `Namespace` | Không gian tên cô lập `monitoring`. |
-| **OpenTelemetry Collector** | `otel-collector.yaml` | `ConfigMap`, `Deployment`, `Service` | Telemetry Hub tiếp nhận OTLP 4317/4318, xử lý batch, lọc dữ liệu nhạy cảm và export tới Tempo, Loki, Prometheus. |
-| **Loki & Tempo** | `loki-tempo.yaml` | `ConfigMap`, `Deployment`, `Service` | Lưu trữ Logs phân tán và Distributed Traces với local persistent storage. |
-| **Grafana Platform** | `grafana.yaml` | `ConfigMap` (Datasources/Dashboards), `Deployment`, `Service`, `Ingress` | Giao diện trực quan hóa SRE Dashboards as Code, Ingress chia sẻ ALB `sre-platform` tại `grafana.dev.devopsss.site`. |
-| **Prometheus Rules** | `prometheus-rules.yaml` | `ServiceMonitor`, `PrometheusRule`, `AlertmanagerConfig` | Cào metric OTel Collector 8889, Multi-Window Multi-Burn-Rate alerting và routing thông báo Pager/Webhook. |
+```
+[00-Namespace]
+      │
+      ▼
+[01-Secrets] (AWS Secrets Manager)
+      │
+      ▼
+[02-Agent thu thập] (OTel Collector)
+      │
+      ▼
+[03-Storage Backends] (Loki & Tempo)
+      │
+      ▼
+[04-Dashboards Config] ──► [05-Grafana Core] ──► [06-ALB Ingress]
+                                                         │
+                                                         ▼
+                                            [07-Prometheus Rules]
+```
 
-## Verification
+---
 
-Toàn bộ tài nguyên được đồng bộ hóa tự động qua ArgoCD Application `platform-infrastructure`.
+## 2. Giải thích chi tiết từng File (Mỗi file làm gì?)
+
+| Thứ tự | Tên File | Thành phần (Kind) | Chức năng & Vai trò trong hệ thống |
+| :---: | :--- | :--- | :--- |
+| **00** | [`00-namespace.yaml`](00-namespace.yaml) | `Namespace` | Khởi tạo không gian tên cô lập `monitoring` và gán nhãn nhận diện `app.kubernetes.io/part-of: sre-platform`. Mọi tài nguyên khác đều phải nằm trong namespace này. |
+| **01** | [`01-grafana-secret.yaml`](01-grafana-secret.yaml) | `ExternalSecret` | Tự động đồng bộ tài khoản và mật khẩu admin của Grafana từ AWS Secrets Manager (`/sre-platform/dev/grafana/credentials`) về Kubernetes Secret `grafana-admin-credentials`. **Không lưu mật khẩu dạng plaintext trên Git**. |
+| **02** | [`02-otel-collector.yaml`](02-otel-collector.yaml) | `ConfigMap`<br>`Deployment`<br>`Service` | Trạm thu thập dữ liệu trung tâm (Telemetry Hub):<br>• Nhận dữ liệu Traces/Metrics/Logs từ microservices qua cổng OTLP `4317` (gRPC) và `4318` (HTTP).<br>• Lọc bỏ dữ liệu nhạy cảm (redact JWT Bearer tokens, passwords).<br>• Đẩy Traces tới Tempo, Logs tới Loki, và mở cổng `8889` cho Prometheus cào Metrics. |
+| **03** | [`03-loki-tempo.yaml`](03-loki-tempo.yaml) | `ConfigMap`<br>`Deployment`<br>`Service` | Hệ thống lưu trữ dữ liệu chuyên dụng:<br>• **Grafana Loki:** Lưu trữ log phân tán, hỗ trợ truy vấn LogQL.<br>• **Grafana Tempo:** Lưu trữ vết phân tán (Distributed Traces), hỗ trợ truy vấn TraceQL. |
+| **04** | [`04-grafana-dashboards.yaml`](04-grafana-dashboards.yaml) | `ConfigMap` | Cấu hình Dashboards as Code:<br>• Tự động đăng ký 3 Data Sources: Prometheus, Loki, Tempo (tích hợp tính năng Trace-to-Logs và Derived Fields qua TraceID).<br>• Tự động nạp sẵn Dashboard **SRE — Golden Signals & Error Budget** mà không cần cấu hình bằng tay trên UI. |
+| **05** | [`05-grafana-core.yaml`](05-grafana-core.yaml) | `Deployment`<br>`Service` | Instance máy chủ Grafana (v10.4.0):<br>• Đọc thông tin đăng nhập trực tiếp từ Secret `grafana-admin-credentials` (tạo từ bước 01).<br>• Mount tự động các ConfigMaps dashboards từ bước 04. |
+| **06** | [`06-grafana-ingress.yaml`](06-grafana-ingress.yaml) | `Ingress` | Cung cấp định tuyến bên ngoài qua AWS Application Load Balancer (ALB):<br>• Tham gia chung nhóm ALB `sre-platform` (Group order: 30) cùng với Argo CD và Reliability Shop để tối ưu chi phí.<br>• Tự động chuyển hướng HTTP sang HTTPS, gắn chứng chỉ ACM cho tên miền `grafana.dev.devopsss.site`. |
+| **07** | [`07-prometheus-rules.yaml`](07-prometheus-rules.yaml) | `ServiceMonitor`<br>`PrometheusRule`<br>`AlertmanagerConfig` | Giám sát & Cảnh báo SRE thông minh:<br>• `ServiceMonitor`: Hướng dẫn Prometheus định kỳ 15s cào metric OTel Collector.<br>• `PrometheusRule`: Cảnh báo **Multi-Window Multi-Burn-Rate** khi tốc độ đốt Error Budget vượt ngưỡng quy định (14.4x cho Critical, 6x cho Warning).<br>• `AlertmanagerConfig`: Định tuyến cảnh báo đến Webhook/Pager. |
+
+---
+
+## 3. Lợi ích khi tổ chức theo cấu trúc này
+
+1. **Dễ đọc & Dễ tìm:** Nhìn vào danh sách file là biết ngay file nào làm việc gì, không bị lẫn lộn giữa cấu hình Grafana lõi với Dashboards JSON.
+2. **Review Git Diff rõ ràng:** Khi bạn thêm sửa một bảng điều khiển (Dashboard) mới, Git chỉ thay đổi file `04-grafana-dashboards.yaml`, hoàn toàn không ảnh hưởng tới Deployment (`05-grafana-core.yaml`) hay Ingress (`06-grafana-ingress.yaml`).
+3. **Thứ tự thực thi tường minh:** File `kustomization.yaml` nạp các tài nguyên tuần tự từ `00` đến `07`, giúp việc debug khi khởi tạo môi trường mới nhanh chóng và không bị lỗi phụ thuộc tài nguyên.
+
+---
+
+## 4. Kiểm tra & Vận hành
+
+### Render kiểm tra cú pháp cục bộ:
+```powershell
+kubectl kustomize gitops/platform/monitoring
+```
+
+### Kiểm tra trạng thái hoạt động trên EKS:
+```powershell
+# Kiểm tra Pods
+kubectl get pods -n monitoring
+
+# Kiểm tra Ingress
+kubectl get ingress -n monitoring
+
+# Kiểm tra đồng bộ Secret từ AWS Secrets Manager
+kubectl get externalsecret -n monitoring
+```

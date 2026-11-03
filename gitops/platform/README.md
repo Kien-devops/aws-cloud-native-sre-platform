@@ -2,7 +2,7 @@
 
 ## Status
 
-`ACTIVE` cho hai nhóm cấu hình: `ingress/` và `external-secrets/`. Các thư mục `monitoring/`, `keda/`, `karpenter/`, `argo-rollouts/`, `chaos-mesh/` và `cert-manager/` là kế hoạch; hiện chưa có manifest triển khai.
+`ACTIVE` cho ba nhóm cấu hình: `ingress/`, `external-secrets/` và `monitoring/`. Các thư mục `keda/`, `karpenter/`, `argo-rollouts/`, `chaos-mesh/` và `cert-manager/` là kế hoạch; hiện chưa có manifest triển khai.
 
 `platform-infrastructure` trong `gitops/bootstrap/root-application.yaml` sync trực tiếp thư mục này. Đây không phải App-of-Apps và không tự cài controller Helm.
 
@@ -14,7 +14,7 @@ Thư mục này giữ cấu hình platform dùng chung cho EKS, tách khỏi wor
 gitops/platform/
 ├── ingress/              # Active: Ingress rule cho Argo CD
 ├── external-secrets/     # Active: ClusterSecretStore cho AWS Secrets Manager
-├── monitoring/           # Planned: metrics, logs, traces
+├── monitoring/           # Active: metrics, logs, traces, dashboards, alerting
 ├── keda/                 # Planned: event-driven pod autoscaling
 ├── karpenter/            # Planned: node provisioning
 ├── argo-rollouts/        # Planned: progressive delivery

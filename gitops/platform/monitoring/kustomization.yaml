@@ -4,9 +4,11 @@ kind: Kustomization
 namespace: monitoring
 
 resources:
-  - namespace.yaml
-  - external-secret.yaml
-  - otel-collector.yaml
-  - loki-tempo.yaml
-  - grafana.yaml
-  - prometheus-rules.yaml
+  - 00-namespace.yaml
+  - 01-grafana-secret.yaml
+  - 02-otel-collector.yaml
+  - 03-loki-tempo.yaml
+  - 04-grafana-dashboards.yaml
+  - 05-grafana-core.yaml
+  - 06-grafana-ingress.yaml
+  - 07-prometheus-rules.yaml
