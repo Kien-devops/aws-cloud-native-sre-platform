@@ -1,61 +1,99 @@
-# GitOps Bootstrap Architecture Guide
+# GitOps Bootstrap
 
-Thư mục `gitops/bootstrap/` là điểm khởi động duy nhất (**Single Entrypoint**) cho toàn bộ nền tảng **AWS Cloud-Native SRE Platform**.
+## Phạm vi
 
-Kiến trúc đã được tinh gọn tối đa theo mô hình **2-Tier Clean Architecture** để loại bỏ hoàn toàn hiện tượng lồng nhau phức tạp (Over-nesting / Redundancy).
+`root-application.yaml` chứa hai Argo CD `Application` độc lập:
 
----
+| Application | AppProject | Source path | Trách nhiệm |
+| --- | --- | --- | --- |
+| `platform-infrastructure` | `platform` | `gitops/platform` | Ingress Argo CD và cấu hình `ClusterSecretStore` |
+| `reliability-shop` | `reliability-shop` | `gitops/applications/reliability-shop/base` | Workload, application Ingress và `ExternalSecret` |
 
-## 1. Sơ Đồ Kiến Trúc Tinh Gọn (Flat & Direct Model)
+Đây là hai Application ngang hàng, không phải App-of-Apps. Tên file `root-application.yaml` được giữ để tương thích với tài liệu/lệnh hiện có.
 
 ```mermaid
 flowchart TD
-    subgraph Bootstrap ["gitops/bootstrap/root-application.yaml"]
-        App1["<b>Application: platform-infrastructure</b><br/>(Project: platform)"]
-        App2["<b>Application: reliability-shop</b><br/>(Project: reliability-shop)"]
-    end
+    Bootstrap["root-application.yaml"]
+    PlatformApp["platform-infrastructure"]
+    WorkloadApp["reliability-shop"]
+    PlatformPath["gitops/platform"]
+    WorkloadPath["gitops/applications/reliability-shop/base"]
 
-    subgraph PlatformDir ["gitops/platform/ (Manifests Thật)"]
-        Ingress["ingress/argocd-ingress.yaml<br/>(Shared ALB sre-platform)"]
-        Secrets["external-secrets/cluster-secret-store.yaml<br/>(AWS Secrets Manager)"]
-        Mon["monitoring/ (OTel, Prometheus, Grafana)"]
-    end
-
-    subgraph AppsDir ["gitops/applications/reliability-shop/base/ (Workload Thật)"]
-        Pods["reliability-shop-app.yaml<br/>(Frontend, Order, Worker, Inventory, Auth)"]
-        SecESO["external-secret.yaml<br/>(ESO App Credentials)"]
-        ShopIngress["ingress.yaml<br/>(Shared ALB sre-platform)"]
-    end
-
-    App1 -->|Quét & Sync trực tiếp| PlatformDir
-    App2 -->|Quét & Sync trực tiếp| AppsDir
+    Bootstrap --> PlatformApp --> PlatformPath
+    Bootstrap --> WorkloadApp --> WorkloadPath
 ```
 
----
+## Prerequisites bên ngoài GitOps
 
-## 2. Ý Nghĩa Của Từng Thư Mục Trong GitOps Repository
+Bootstrap này không cài Argo CD, AWS Load Balancer Controller, External Secrets Operator hoặc EKS Pod Identity. Trước khi sync cần có:
 
-| Thư mục | Chức năng chính | Quy ước & Ranh giới bảo mật |
-| :--- | :--- | :--- |
-| **`gitops/bootstrap/`** | Chứa duy nhất file `root-application.yaml` để khởi tạo toàn bộ cụm chỉ bằng 1 lệnh `kubectl apply`. | Không chứa workload; chỉ chứa định nghĩa 2 Application lớn. |
-| **`gitops/projects/`** | Khai báo 2 thực thể `AppProject`: `platform` (toàn quyền cluster-scoped) và `reliability-shop` (bị cô lập nghiêm ngặt, chỉ hoạt động trong namespace `reliability-shop`). | Bảo vệ an toàn cụm (Blast Radius Containment). |
-| **`gitops/platform/`** | Chứa trực tiếp Kubernetes manifests của các Add-ons hạ tầng (Ingress, External Secrets, Monitoring, Autoscaling). | Quản lý bởi đội ngũ Platform SRE. |
-| **`gitops/applications/`** | Chứa trực tiếp mã nguồn manifests của ứng dụng microservices (`reliability-shop/base`). | Quản lý bởi đội ngũ Product/Application. |
+- EKS access, Argo CD và hai `AppProject` trong `gitops/projects/`.
+- AWS Load Balancer Controller, External Secrets Operator và CRD tương ứng.
+- IAM/Pod Identity cho controller; quyền ECR pull và quyền AWS của workload theo least privilege.
+- ACM certificate, DNS, security group, subnet tagging và network path phù hợp.
+- Secret nguồn trong AWS Secrets Manager; kết nối tới RDS, ElastiCache và SQS nếu workload sử dụng.
 
----
+## Cold bootstrap có thứ tự
 
-## 3. Lệnh Khởi Động Duy Nhất (One-Command Bootstrap)
+Không apply đồng thời hai Application trên cluster mới. `ExternalSecret` của workload phụ thuộc `ClusterSecretStore` do platform quản lý.
 
-Khi thiết lập một cụm EKS mới hoặc khi diễn tập khôi phục sau thảm họa (Disaster Recovery):
-
-```bash
-# Bước 1: Khởi tạo chính sách phân quyền RBAC
+```powershell
+# 1. Tạo security boundary trước Application.
 kubectl apply -f gitops/projects/
 
-# Bước 2: Kích hoạt toàn bộ nền tảng qua Root Application
+# 2. Chỉ tạo Application platform từ file multi-document.
+kubectl apply -f gitops/bootstrap/root-application.yaml `
+  --selector "app.kubernetes.io/name=platform-infrastructure"
+
+# 3. Gate: platform phải sẵn sàng trước workload.
+kubectl -n argocd wait application/platform-infrastructure `
+  --for=jsonpath='{.status.sync.status}'=Synced --timeout=10m
+kubectl -n argocd wait application/platform-infrastructure `
+  --for=jsonpath='{.status.health.status}'=Healthy --timeout=10m
+kubectl wait clustersecretstore/aws-secretsmanager-dev `
+  --for=condition=Ready --timeout=5m
+kubectl -n argocd wait ingress/argocd-server-ingress `
+  --for=jsonpath='{.status.loadBalancer.ingress}' --timeout=10m
+
+# 4. Chỉ tạo Application workload sau khi gate đạt.
+kubectl apply -f gitops/bootstrap/root-application.yaml `
+  --selector "app.kubernetes.io/name=reliability-shop"
+```
+
+Gate tối thiểu:
+
+- `platform-infrastructure`: `Synced` và `Healthy`.
+- `ClusterSecretStore/aws-secretsmanager-dev`: `Ready=True`.
+- Argo CD Ingress có ALB address; DNS/TLS và target health hợp lệ.
+
+Nếu cluster đã ổn định và toàn bộ prerequisites đã được xác nhận, có thể apply cả file. Hai Application khi đó vẫn reconcile độc lập:
+
+```powershell
 kubectl apply -f gitops/bootstrap/root-application.yaml
 ```
 
-Ngay sau 2 lệnh trên, Argo CD sẽ tự động:
-1. Đồng bộ `platform-infrastructure`: Tạo Ingress cho Argo CD Dashboard và kết nối Secrets Manager.
-2. Đồng bộ `reliability-shop`: Triển khai 5 microservices, kéo secret tự động và gắn vào ALB chung.
+## Xác nhận workload
+
+```powershell
+kubectl -n argocd get application reliability-shop
+kubectl -n reliability-shop get externalsecret reliability-shop-credentials
+kubectl -n reliability-shop get deployment,service,ingress
+```
+
+Kết quả cần xác nhận trên cluster thật:
+
+- `reliability-shop`: `Synced` và `Healthy`.
+- `ExternalSecret/reliability-shop-credentials`: `Ready=True`.
+- Deployment đủ replica Ready; ALB target health và application smoke test đạt.
+
+Local render không chứng minh IAM, network, DNS, TLS, AWS endpoint hoặc runtime health.
+
+## Drift và rollback
+
+Cả hai Application bật `prune` và `selfHeal`; sửa trực tiếp resource trên cluster sẽ bị Argo CD reconcile về Git. Rollback bằng Git revert tới commit đã biết tốt rồi sync/quan sát health.
+
+Không xóa Application tùy tiện: finalizer có thể xóa toàn bộ resource do Application quản lý. Không xóa ALB, certificate, AWS secret, RDS, ElastiCache hoặc SQS trong rollback GitOps thông thường.
+
+## Module giữ chỗ
+
+`monitoring`, `keda`, `karpenter`, `argo-rollouts`, `chaos-mesh` và `cert-manager` được giữ để phát triển sau. Trạng thái hiện tại: `PLANNED - NOT DEPLOYED`; bootstrap chưa sync manifest từ các thư mục này.

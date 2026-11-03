@@ -1,56 +1,79 @@
-# Platform Infrastructure Add-ons (`gitops/platform/`)
+# Platform GitOps
 
-Thư mục `gitops/platform/` chứa các thành phần hạ tầng bổ trợ (**Platform Add-ons**) cấp cụm (Cluster-Wide) được quản trị bởi **Platform SRE Team** thông qua Argo CD AppProject `platform`.
+## Status
 
-Mọi Add-on trong thư mục này đều phục vụ mục tiêu đảm bảo độ tin cậy (**Reliability**), khả năng tự phục hồi (**Resilience**), bảo mật (**Security**), và khả năng quan sát (**Observability**) cho toàn bộ các ứng dụng chạy trên cụm Amazon EKS.
+`ACTIVE` cho hai nhóm cấu hình: `ingress/` và `external-secrets/`. Các thư mục `monitoring/`, `keda/`, `karpenter/`, `argo-rollouts/`, `chaos-mesh/` và `cert-manager/` là kế hoạch; hiện chưa có manifest triển khai.
 
----
+`platform-infrastructure` trong `gitops/bootstrap/root-application.yaml` sync trực tiếp thư mục này. Đây không phải App-of-Apps và không tự cài controller Helm.
 
-## 1. Cấu trúc Thư mục và Chức năng Chi tiết
+## Purpose
+
+Thư mục này giữ cấu hình platform dùng chung cho EKS, tách khỏi workload `ReliabilityShop`:
 
 ```text
 gitops/platform/
-├── ingress/              # [1] Cấu hình Routing & Shared Application Load Balancer
-├── external-secrets/     # [2] Đồng bộ Bảo mật với AWS Secrets Manager qua Pod Identity
-├── monitoring/           # [3] Hệ thống Quan sát Toàn diện (OTel, Prometheus, Grafana, Loki, Tempo)
-├── argo-rollouts/        # [4] Động cơ Triển khai Tiến bộ (Canary / Blue-Green Deployments)
-├── karpenter/            # [5] Tự động Co giãn Node cấp tốc độ giây (Just-In-Time Autoscaling)
-├── keda/                 # [6] Tự động Co giãn Pod theo Sự kiện (Queue-Driven Autoscaling)
-├── chaos-mesh/           # [7] Kỹ thuật Hỗn mang (Chaos Engineering & Resilience Drills)
-├── cert-manager/         # [8] Tự động hóa Vòng đời Chứng chỉ X.509 / TLS
-├── ingress-app.yaml      # Argo CD Application quản lý thư mục ingress/
-└── external-secrets-app.yaml # Argo CD Application quản lý thư mục external-secrets/
+├── ingress/              # Active: Ingress rule cho Argo CD
+├── external-secrets/     # Active: ClusterSecretStore cho AWS Secrets Manager
+├── monitoring/           # Planned: metrics, logs, traces
+├── keda/                 # Planned: event-driven pod autoscaling
+├── karpenter/            # Planned: node provisioning
+├── argo-rollouts/        # Planned: progressive delivery
+├── chaos-mesh/           # Planned: controlled failure experiments
+└── cert-manager/         # Planned: certificate lifecycle
 ```
 
----
+Chi tiết: [Ingress](ingress/README.md), [External Secrets](external-secrets/README.md), [Monitoring](monitoring/README.md), [KEDA](keda/README.md), [Karpenter](karpenter/README.md), [Argo Rollouts](argo-rollouts/README.md), [Chaos Mesh](chaos-mesh/README.md), [cert-manager](cert-manager/README.md).
 
-## 2. Bảng Mô tả Chi tiết Từng Module Hạ Tầng
+## Repository ownership
 
-| Thư mục | Thành phần chính | Tương tác Dịch vụ AWS | Mục đích & Trách nhiệm SRE |
-| :--- | :--- | :--- | :--- |
-| **`ingress/`** | `argocd-ingress.yaml` | AWS ALB, ACM, Route 53 | Quản lý định tuyến HTTP/HTTPS tầng Ingress. Áp dụng kỹ thuật **Shared IngressGroup** (`sre-platform`) để gộp các dịch vụ quản trị (Argo CD) và dịch vụ người dùng (`ReliabilityShop`) dùng chung **DUY NHẤT 1 ALB**, tiết kiệm chi phí FinOps và kết nối chứng chỉ ACM wildcard `*.dev.devopsss.site`. |
-| **`external-secrets/`**| `ClusterSecretStore` | AWS Secrets Manager, KMS CMK | Triển khai **External Secrets Operator (ESO)**. Lắng nghe và đồng bộ tự động thông tin nhạy cảm (DB password, Redis auth token, API keys) từ Secrets Manager vào Kubernetes Secrets mà không lưu bất kỳ secret nào trên Git. Xác thực qua **EKS Pod Identity**. |
-| **`monitoring/`** | OTel, Prometheus, Loki, Tempo, Grafana | Amazon CloudWatch, S3 (Loki/Tempo) | Thu thập bộ 3 tín hiệu quan sát (**Tri-Signal Observability**): Metrics (Prometheus), Logs (Loki), và Traces (Tempo). Cung cấp Dashboard đo lường SLO/SLI và cảnh báo đa tốc độ đốt ngân sách (**Multi-Window Multi-Burn-Rate Alerts**). |
-| **`argo-rollouts/`** | Controller & AnalysisTemplate | CloudWatch / Prometheus Metrics | Thay thế cơ chế RollingUpdate mặc định bằng **Canary Release**. Tự động phân tích tỷ lệ lỗi (Error Rate) và độ trễ (Latency p95); nếu có bất thường sẽ tự động **Rollback** tức thì trong vài giây để bảo vệ người dùng. |
-| **`karpenter/`** | NodePool, EC2NodeClass | Amazon EC2 Fleet, Spot Instances | Tự động phân tích nhu cầu tài nguyên của Pods đang ở trạng thái `Pending` và tạo Node EC2 phù hợp trực tiếp chỉ trong vòng 30 - 45 giây, tối ưu hóa chi phí bằng cách kết hợp linh hoạt On-Demand và Spot Instances. |
-| **`keda/`** | ScaledObject | Amazon SQS Queue | Giám sát độ sâu hàng đợi (`ApproximateNumberOfMessagesVisible`) của AWS SQS Queue. Tự động tăng số lượng Pod `payment-worker` khi đơn hàng dồn ứ và giảm về 1 (hoặc 0) khi hàng đợi trống. |
-| **`chaos-mesh/`** | Chaos Experiments | EKS Pods, Network, Nodes | Thực hiện các kịch bản diễn tập sự cố (GameDay): mô phỏng rớt Node, nghẽn mạng (Network Latency), gián đoạn kết nối tới RDS PostgreSQL/Redis để kiểm chứng khả năng tự phục hồi của hệ thống. |
-| **`cert-manager/`** | ClusterIssuer, Certificate | Let's Encrypt / Private CA | Cấp phát và tự động xoay vòng chứng chỉ nội bộ cho giao tiếp mTLS giữa các microservices hoặc Ingress phụ. |
+Platform SRE review và thay đổi file. Argo CD là reconciler runtime. Application team sở hữu workload, `ExternalSecret` consumer và application Ingress; không sửa trực tiếp cấu hình platform trên cluster.
 
----
+## Prerequisites
 
-## 3. Cách Thức Argo CD Đồng Bộ Tầng Platform
+- EKS, Argo CD, AppProject `platform` và Application `platform-infrastructure` đã sẵn sàng.
+- AWS Load Balancer Controller, `IngressClass` `alb` và Pod Identity/IRSA đã được cài ngoài thư mục này.
+- External Secrets Operator, CRD `ClusterSecretStore`/`ExternalSecret` và identity đọc Secrets Manager đã sẵn sàng.
+- ACM certificate, DNS, security group và subnet tagging phải tồn tại trước khi sync Ingress.
+- AWS region, secret path, IAM policy và network path phải khớp môi trường; secret value không đặt trong Git.
 
-Các thành phần trong `gitops/platform/` được quản lý trực tiếp bởi **`platform-root` Application** (thuộc AppProject `platform`):
+## AWS/EKS integration
 
-```mermaid
-flowchart LR
-    PlatformRoot["<b>platform-root</b><br/>(Argo CD Application)"] -->|Quét & Sync| IngressApp["platform-ingress<br/>(gitops/platform/ingress)"]
-    PlatformRoot -->|Quét & Sync| ESOApp["platform-external-secrets<br/>(gitops/platform/external-secrets)"]
-    PlatformRoot -->|Mở rộng| MonApp["platform-monitoring<br/>(gitops/platform/monitoring)"]
-    PlatformRoot -->|Mở rộng| KarpenterApp["platform-karpenter<br/>(gitops/platform/karpenter)"]
-    PlatformRoot -->|Mở rộng| KedaApp["platform-keda<br/>(gitops/platform/keda)"]
+`ingress/` cung cấp rule để AWS Load Balancer Controller reconcile ALB. `external-secrets/` chỉ khai báo provider AWS Secrets Manager; ESO mới thực hiện đồng bộ. Route 53, ACM, security group, controller, Pod Identity và VPC endpoint/routing là dependency bên ngoài.
+
+## Security/IAM
+
+- Dùng HTTPS/ACM và security group đã review; kiểm tra shared IngressGroup trước khi thêm route.
+- IAM controller chỉ có quyền cần cho ALB hoặc Secrets Manager; không commit secret, token, credential hay kubeconfig.
+- `ClusterSecretStore` là cluster-scoped; chỉ mở rộng khi RBAC/ESO policy giới hạn namespace và secret path phù hợp.
+- AppProject và resource whitelist là guardrail; mọi mở rộng quyền cần review riêng.
+
+## Cost/operations
+
+Shared ALB giảm số load balancer nhưng tăng blast radius giữa các route. Secrets Manager tính phí secret và API calls. Theo dõi controller health, ALB target health, ExternalSecret status và CloudTrail. Repo chưa có chi phí hoặc SLO đo thực tế.
+
+## Enablement
+
+1. Xác nhận prerequisites và `kubectl kustomize gitops/platform`.
+2. Sync `platform-infrastructure` bằng Argo CD.
+3. Chờ Ingress/ClusterSecretStore `Healthy`/`Ready`.
+4. Sau đó mới sync workload sử dụng ALB hoặc `ExternalSecret`.
+5. Module planned chỉ bật sau khi có manifest, owner, IAM policy, rollback và evidence riêng.
+
+## Validation
+
+```powershell
+kubectl kustomize gitops/platform
+kubectl -n argocd get application platform-infrastructure
+kubectl -n argocd get ingress argocd-server-ingress
+kubectl get clustersecretstore aws-secretsmanager-dev
 ```
 
-* **Anti-Drift & Self-Healing:** Toàn bộ Add-on đều kích hoạt `selfHeal: true` và `prune: true`. Bất kỳ thay đổi thủ công nào qua terminal đều sẽ bị Argo CD tự động hoàn tác về trạng thái chuẩn trong Git.
-* **Least Privilege:** AppProject `platform` chỉ cho phép triển khai vào các namespaces hệ thống được cấp phép: `kube-system`, `external-secrets`, `argocd`, `monitoring`, `observability`.
+Runtime health, DNS/TLS, ALB target health và secret sync phải kiểm tra trên cluster thật; render local chỉ chứng minh YAML có thể dựng.
+
+## Rollback
+
+Revert Git rồi để Argo CD sync lại. Không xóa thủ công ALB, certificate, AWS secret hoặc generated Kubernetes Secret trong cùng bước rollback. Nếu mất route, restore commit cuối đã biết tốt rồi kiểm tra target health.
+
+## Measurement boundary
+
+Manifest/render checks có thể chạy local. Runtime deployment, AWS resource state, latency, cost và SLO: `NOT_MEASURED`.
