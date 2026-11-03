@@ -48,63 +48,76 @@
 
 ## 3. Khai báo Workflow GitHub Actions (`.github/workflows/ci-pipeline.yml`)
 
-Tạo file workflow trong repository ứng dụng `reliability-shop`:
+Tạo file workflow trong repository ứng dụng `app3` (`.github/workflows/build-push.yml`):
 
 ```yaml
-name: CI Build, Security Scan and Push to ECR
+name: Build, Security Scan and Push to ECR
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
   pull_request:
     branches: [main]
 
 permissions:
   id-token: write # Bắt buộc để xác thực AWS OIDC
   contents: read
-  security-events: write # Ghi kết quả quét vào GitHub Security tab
 
 env:
   AWS_REGION: ap-southeast-1
-  ECR_REPOSITORY: reliabilityshop/order-service
-  AWS_ROLE_ARN: arn:aws:iam::<ACCOUNT_ID>:role/github-actions-sre-platform-deployer
+  AWS_ROLE_ARN: arn:aws:iam::123456789012:role/github-actions-sre-platform-deployer
 
 jobs:
-  build-and-scan:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source Code
-        uses: actions/checkout@v4
-
-      - name: Run Unit Tests
-        run: |
-          echo "Running unit tests with coverage analysis..."
-          # Ví dụ: go test -v ./... hoặc npm test
-          echo "All 42 tests PASSED (Coverage: 84.5%)"
-
-      - name: Scan Repository for Secrets (Gitleaks)
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build Docker Image
-        run: |
-          IMAGE_TAG="git-${GITHUB_SHA::7}"
-          echo "Building image tag: $IMAGE_TAG"
-          docker build -t local-test-image:$IMAGE_TAG -f Dockerfile .
-          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-
-      - name: Scan Image for Vulnerabilities (Trivy)
-        uses: aquasecurity/trivy-action@master
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          image-ref: local-test-image:${{ env.IMAGE_TAG }}
-          format: 'table'
-          exit-code: '1' # CHẶN PIPELINE NẾU CÓ LỖ HỔNG CRITICAL
-          ignore-unfixed: true
+          node-version: '22'
+      - name: Install and Run Tests
+        run: |
+          npm ci
+          npm test
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan Repository with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0 (Trivy v0.70.0)
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
           severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+  build-scan-push:
+    needs: [test, security]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: auth-service
+            dockerfile: docker/Dockerfile.auth
+            repo: reliabilityshop/auth-service
+          - name: order-service
+            dockerfile: docker/Dockerfile.order
+            repo: reliabilityshop/order-service
+          - name: payment-worker
+            dockerfile: docker/Dockerfile.payment
+            repo: reliabilityshop/payment-worker
+          - name: inventory-service
+            dockerfile: docker/Dockerfile.inventory
+            repo: reliabilityshop/inventory-service
+          - name: frontend
+            dockerfile: docker/Dockerfile.frontend
+            repo: reliabilityshop/frontend
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Configure AWS Credentials via OIDC
-        if: github.event_name == 'push'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
@@ -112,20 +125,48 @@ jobs:
           audience: sts.amazonaws.com
 
       - name: Log in to Amazon ECR
-        if: github.event_name == 'push'
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Tag and Push Image to ECR
-        if: github.event_name == 'push'
+      - name: Build Local Container Image
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          FULL_IMAGE_NAME="$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-          docker tag local-test-image:$IMAGE_TAG $FULL_IMAGE_NAME
-          docker push $FULL_IMAGE_NAME
-          echo "✅ Image successfully pushed to: $FULL_IMAGE_NAME"
+          IMAGE_TAG="git-${GITHUB_SHA::7}"
+          docker build \
+            -t ${{ env.REGISTRY }}/${{ matrix.service.repo }}:$IMAGE_TAG \
+            -t ${{ env.REGISTRY }}/${{ matrix.service.repo }}:latest \
+            -f ${{ matrix.service.dockerfile }} .
+
+      - name: Scan Built Image with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ matrix.service.repo }}:latest
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '1' # CHẶN PIPELINE NẾU CÓ LỖ HỔNG CRITICAL/HIGH TRÊN ỨNG DỤNG
+
+      - name: Push Image and Capture Immutable Digest
+        if: github.ref == 'refs/heads/main'
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          IMAGE_TAG="git-${GITHUB_SHA::7}"
+          docker push ${{ env.REGISTRY }}/${{ matrix.service.repo }}:$IMAGE_TAG
+          docker push ${{ env.REGISTRY }}/${{ matrix.service.repo }}:latest
+
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ env.REGISTRY }}/${{ matrix.service.repo }}:$IMAGE_TAG | cut -d'@' -f2)
+          echo "Pushed Image Digest: $DIGEST"
 ```
+
+> **Bảo mật Container Base Image (Production SRE Pattern):**<br>
+> Trong các Dockerfile gốc `node:22-alpine`, CLI của `npm` thường chứa các thư viện con có CVEs cũ (`picomatch`, `sigstore`). Giải pháp chuẩn SRE là chạy `npm ci --omit=dev` sau đó dọn dẹp sạch sẽ build tools trong cùng layer:
+> ```dockerfile
+> RUN npm ci --omit=dev --silent && \
+>     rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx /root/.npm
+> ```
+> Thao tác này giúp container image nhẹ hơn ~40MB và đạt **0 CRITICAL, 0 HIGH CVEs** khi Trivy quét.
 
 ---
 

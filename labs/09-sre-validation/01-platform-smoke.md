@@ -1,143 +1,204 @@
-# 09.01 — Kiểm thử Khói Toàn trình Nền tảng (Platform Smoke Test Protocol)
+# 09.01 — Phase 1 & 2: Live Baseline (Read-Only) & Controlled Live Test
 
-> **Trạng thái:** Hướng dẫn thực hành chi tiết kịch bản kiểm thử hành trình người dùng toàn diện (End-to-End User Journey).  
-> **Áp dụng cho:** Nghiệm thu tích hợp trước khi áp dụng tải trọng k6; kiểm tra tính liên tục của dữ liệu giữa API, Database, Cache và Queue.
+> **Trạng thái:** Quy trình kiểm chứng thực tế tại chỗ (Live Operational Verification).<br>
+> **Áp dụng cho:** Thiết lập đường cơ sở (Baseline) chỉ đọc và thực thi bài kiểm thử có kiểm soát 1 đơn hàng duy nhất trước khi can thiệp vào mã nguồn hoặc triển khai.
 
 ---
 
 ## 1. Mục tiêu và Nguyên tắc SRE
 
-- **Mục tiêu:** 
-  - Thực thi kịch bản kiểm thử khói tự động mô phỏng **100% hành trình người dùng (Complete User Journey)** của ReliabilityShop:
-    1. **DNS & TLS Handshake:** Phân giải domain `shop.dev.sreplatform.yourdomain.com` trỏ đúng ALB, mã hóa TLS 1.3 hợp lệ.
-    2. **Xem Sản phẩm (Catalog Browse):** Truy vấn danh mục sản phẩm từ cache Redis (hoặc database fallback).
-    3. **Tạo Đơn Hàng (Order Creation):** Gửi request POST đơn hàng mới, ghi nhận bản ghi vào Amazon RDS PostgreSQL.
-    4. **Thanh toán Bất đồng bộ (Async Payment):** Đẩy thông điệp vào Amazon SQS, `payment-worker` lấy ra xử lý và cập nhật trạng thái đơn hàng sang `COMPLETED`.
-    5. **Truy vấn Lịch sử (Order Query):** Đọc lại đơn hàng vừa tạo để chứng minh dữ liệu đồng nhất.
-  - Xác nhận rằng không có bất kỳ pod nào bị crash hoặc rơi vào vòng lặp khởi động lại (`Restarts = 0`).
+- **Mục tiêu:**
+  - **Phase 1 (Live Baseline, Read-Only):**
+    - Kiểm tra sức khỏe toàn diện EKS cluster, managed node groups, managed add-ons, Argo CD, Pods và target groups trên Shared ALB.
+    - Kiểm tra trạng thái RDS PostgreSQL, ElastiCache Redis, SQS queue & DLQ, ECR repositories, Pod Identity associations và Security Group matrix.
+    - Thu thập bằng chứng (evidence) và thực hiện **Redaction tuyệt đối** (che giấu Account ID thật, token, mật khẩu).
+    - **Bất biến (Invariant): Không tạo bất kỳ VPC endpoint mới nào.**
+  - **Phase 2 (Controlled Live Test — Cần phê duyệt trước):**
+    - Tạo đúng **MỘT (01)** đơn hàng có `test_order_id` duy nhất (ví dụ: `test-order-baseline-001`).
+    - Xác minh RDS ghi nhận bản ghi với trạng thái khởi tạo `PENDING_PAYMENT`.
+    - Xác minh vòng đời thông điệp SQS: Send -> Receive -> Delete.
+    - Xác minh worker xử lý và cập nhật trạng thái đơn hàng sang `PAID`.
+    - Gọi API danh sách đơn hàng 2 lần liên tiếp: Lần 1 trả về Cache `MISS` -> đọc RDS -> ghi nhận cache; Lần 2 trả về Cache `HIT` từ Redis.
+    - Lưu lại toàn bộ timestamps, logs, và metrics; **tuyệt đối không đọc hoặc in ra giá trị secret**.
 - **Nguyên tắc SRE:**
-  - **Synthetic Journey Validation:** Chỉ số CPU hay Kubernetes Pod status chỉ là tín hiệu nội bộ; cách duy nhất để chứng minh nền tảng "sống" là thực hiện thành công một giao dịch nghiệp vụ thật từ ngoài Internet vào.
-  - **Zero Tolerance for Silent Failures:** Không chấp nhận các lỗi ngầm (ví dụ: HTTP 200 nhưng dữ liệu không được lưu vào PostgreSQL, hoặc message bị kẹt trong SQS không ai xử lý).
-  - **Timestamped Evidence Collection:** Mọi bước chạy phải in mã trạng thái HTTP, thời gian đáp ứng (Latency ms) và lưu log làm bằng chứng.
+  - **No Assumption Without Proof:** Không phỏng đoán trạng thái của cluster; mọi kết luận phải dựa trên câu lệnh query AWS API và HTTP responses thực tế.
+  - **Safety Gate:** Phase 1 và Phase 2 là điều kiện tiên quyết (Prerequisite Gate). Tuyệt đối chưa sửa code trong `app3`, chưa push git, chưa deploy cho tới khi baseline và controlled live test hoàn tất.
 
 ---
 
-## 2. Sơ đồ Luồng Hành trình Người dùng (User Journey Flow)
+## 2. Phase 1: Quy trình Kiểm tra Live Baseline (Read-Only)
 
-```text
-  [ Synthetic Client (cURL / Script) ]
-                   |
-     1. GET /health (HTTPS 200)
-                   |
-     2. GET /api/v1/products (Đọc Redis Cache)
-                   |
-     3. POST /api/v1/orders (Ghi PostgreSQL DB)
-                   |
-                   +---> Gửi SQS Message ---> [ payment-worker ]
-                   |                               |
-     4. GET /api/v1/orders/{id}                    +---> Cập nhật DB: COMPLETED
-        (Xác nhận trạng thái: COMPLETED)
-```
-
----
-
-## 3. Kịch bản Thực thi Kiểm thử Tự động (Automated Smoke Test Script)
-
-Lưu và chạy file script `scripts/platform-smoke-test.sh` từ máy trạm:
+### Bước 1: Kiểm tra EKS, Add-ons, Nodes và Pods
 
 ```bash
-#!/usr/bin/env bash
-set -euo pipefail
+# 1. Kiểm tra trạng thái EKS Cluster
+aws eks describe-cluster --name sre-platform-dev --region ap-southeast-1 \
+  --query "cluster.{Name:name,Status:status,Version:version,Endpoint:endpoint}" --output table
 
-BASE_URL="https://shop.dev.sreplatform.yourdomain.com"
-echo "=================================================="
-echo "  SRE PLATFORM END-TO-END SMOKE TEST PROTOCOL     "
-echo "  Target: $BASE_URL                               "
-echo "  Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)       "
-echo "=================================================="
+# 2. Kiểm tra Add-ons
+aws eks list-addons --cluster-name sre-platform-dev --region ap-southeast-1 --output table
 
-# BƯỚC 1: KIỂM TRA DNS VÀ TLS HANDSHAKE
-echo -n "[1/5] Checking DNS Resolution & TLS Handshake... "
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/health")
-if [ "$HTTP_STATUS" -eq 200 ]; then
-  echo "✅ PASSED (HTTP $HTTP_STATUS)"
-else
-  echo "❌ FAILED (HTTP $HTTP_STATUS)"
-  exit 1
-fi
+# 3. Kiểm tra NodeGroup và EC2 Instances
+aws eks describe-nodegroup --cluster-name sre-platform-dev --nodegroup-name sre-platform-dev-system-nodes \
+  --region ap-southeast-1 --query "nodegroup.{Status:status,Scaling:scalingConfig,Capacity:capacityType}" --output table
 
-# BƯỚC 2: XEM DANH MỤC SẢN PHẨM (CATALOG BROWSE)
-echo -n "[2/5] Browsing Product Catalog (Redis / DB)... "
-CATALOG_RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/api/v1/products")
-CATALOG_CODE=$(echo "$CATALOG_RESPONSE" | tail -n1)
-if [ "$CATALOG_CODE" -eq 200 ]; then
-  echo "✅ PASSED (Catalog returned items)"
-else
-  echo "❌ FAILED (HTTP $CATALOG_CODE)"
-  exit 1
-fi
+# 4. Kiểm tra sức khỏe Pods trên toàn cụm
+kubectl get pods -A -o wide
+```
 
-# BƯỚC 3: TẠO ĐƠN HÀNG MỚI (POST ORDER)
-echo -n "[3/5] Creating New Order (Writing to RDS PostgreSQL)... "
-ORDER_PAYLOAD='{"customer_id":"sre-tester","item_id":"laptop-dev","quantity":1,"price":1200.00}'
-ORDER_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/v1/orders" \
-  -H "Content-Type: application/json" \
-  -d "$ORDER_PAYLOAD")
+### Bước 2: Kiểm tra Foundation Services (RDS, Redis, SQS, ECR, ALB)
 
-ORDER_CODE=$(echo "$ORDER_RESPONSE" | tail -n1)
-ORDER_BODY=$(echo "$ORDER_RESPONSE" | head -n -1)
+```bash
+# 1. Kiểm tra RDS PostgreSQL
+aws rds describe-db-instances --db-instance-identifier sre-platform-dev-pg --region ap-southeast-1 \
+  --query "DBInstances[0].{DB:DBInstanceIdentifier,Status:DBInstanceStatus,Engine:Engine,Class:DBInstanceClass}" --output table
 
-if [ "$ORDER_CODE" -eq 201 ]; then
-  ORDER_ID=$(echo "$ORDER_BODY" | jq -r '.order_id')
-  echo "✅ PASSED (Order created with ID: $ORDER_ID)"
-else
-  echo "❌ FAILED (HTTP $ORDER_CODE): $ORDER_BODY"
-  exit 1
-fi
+# 2. Kiểm tra ElastiCache Redis
+aws elasticache describe-cache-clusters --region ap-southeast-1 \
+  --query "CacheClusters[*].{Id:CacheClusterId,Status:CacheClusterStatus,Engine:Engine,Nodes:NumCacheNodes}" --output table
 
-# BƯỚC 4: CHỜ WORKER XỬ LÝ THANH TOÁN QUA SQS
-echo -n "[4/5] Waiting for Payment Worker to consume SQS message... "
-sleep 5 # Chờ worker lấy message và cập nhật DB
+# 3. Kiểm tra SQS Main Queue & DLQ
+aws sqs list-queues --region ap-southeast-1 --queue-name-prefix reliability-shop-dev --output table
 
-# BƯỚC 5: TRUY VẤN LẠI ĐƠN HÀNG ĐỂ XÁC NHẬN TRẠNG THÁI COMPLETED
-echo -n "[5/5] Querying Order Status (Verification)... "
-QUERY_RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/api/v1/orders/$ORDER_ID")
-QUERY_CODE=$(echo "$QUERY_RESPONSE" | tail -n1)
-QUERY_STATUS=$(echo "$QUERY_RESPONSE" | head -n -1 | jq -r '.status')
-
-if [ "$QUERY_CODE" -eq 200 ] && [ "$QUERY_STATUS" == "COMPLETED" ]; then
-  echo "✅ PASSED (Order status is $QUERY_STATUS)"
-else
-  echo "❌ FAILED (Status: $QUERY_STATUS, Code: $QUERY_CODE)"
-  exit 1
-fi
-
-echo "=================================================="
-echo "🎉 ALL 5 SMOKE TEST GATES PASSED SUCCESSFULLY!"
-echo "=================================================="
+# 4. Kiểm tra Target Group Health trên Shared ALB
+aws elbv2 describe-target-groups --region ap-southeast-1 --query "TargetGroups[*].{Name:TargetGroupName,Port:Port,VpcId:VpcId}" --output table
 ```
 
 ---
 
-## 4. Báo cáo Nghiệm thu Kiểm thử Khói (Smoke Test Evidence)
+## 3. Phase 2: Quy trình Kiểm thử Có Kiểm soát (Controlled Live Test)
+
+> **Cảnh báo an toàn:** Kịch bản này chỉ thực hiện tạo đúng **1 đơn hàng duy nhất** và không gây đột biến tải.
+
+### Bước 1: Tạo 1 Đơn Hàng Mới với Test ID Duy Nhất (Idempotency Enforced)
+
+```bash
+TARGET_HOST="https://shop.dev.devopsss.site"
+IDEMPOTENCY_KEY="sre-test-order-$(date +%s)"
+
+echo "Executing Controlled Live Test with Idempotency-Key: $IDEMPOTENCY_KEY..."
+
+# Gửi HTTP POST tạo đơn hàng với header Idempotency-Key
+CREATE_RES=$(curl -s -w "\n%{http_code}" -X POST "$TARGET_HOST/api/orders" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
+  -d '{
+    "userId": "sre-baseline-user",
+    "items": [
+      {
+        "productId": "prod-sre-001",
+        "name": "SRE Production Handbook",
+        "price": 99.99,
+        "quantity": 1
+      }
+    ],
+    "totalAmount": 99.99
+  }')
+
+HTTP_CODE=$(echo "$CREATE_RES" | tail -n1)
+BODY=$(echo "$CREATE_RES" | head -n -1)
+
+echo "HTTP Code: $HTTP_CODE"
+echo "Response Body: $BODY"
+```
+
+Response trả về thực tế:
+```json
+{
+  "success": true,
+  "orderId": "ord-2435262e-d7af-414d-b2a9-b7e6ada32de0",
+  "status": "PENDING_PAYMENT",
+  "eventStatus": "PUBLISHED"
+}
+```
+
+### Bước 2: Kiểm thử Idempotency (Gửi lại cùng Idempotency-Key)
+
+```bash
+# Gửi lại đơn hàng với cùng Idempotency-Key
+DUP_RES=$(curl -s -X POST "$TARGET_HOST/api/orders" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
+  -d '{"userId":"sre-baseline-user","items":[],"totalAmount":99.99}')
+
+echo "Duplicate Request Response: $DUP_RES"
+```
+
+Kết quả trả về ngay lập tức với cờ `duplicate: true`, không tạo thêm đơn hàng và không bắn thêm event thừa:
+```json
+{
+  "success": true,
+  "orderId": "ord-2435262e-d7af-414d-b2a9-b7e6ada32de0",
+  "status": "PAID",
+  "eventStatus": "PUBLISHED",
+  "duplicate": true
+}
+```
+
+### Bước 3: Xác minh Trạng thái trong RDS, SQS và Cache-Aside Redis
+
+1. **Xác minh RDS Transaction & SQS Outbox:**
+   - Đơn hàng được ghi vào bảng `orders` với trạng thái ban đầu `PENDING_PAYMENT`.
+   - Event outbox được ghi vào bảng `order_outbox` trong cùng transaction DB (ACID).
+   - Event dispatcher đẩy message vào `reliability-shop-dev-order-queue` và cập nhật `order_outbox.status = 'PUBLISHED'`.
+2. **Xác minh Worker Idempotency & SQS Delete:**
+   - `payment-worker` tiêu thụ message, kiểm tra bảng `processed_events(event_id UNIQUE)`.
+   - Worker cập nhật `orders.status = 'PAID'` và ghi log `[Order Worker] Payment processed for order ord-...`.
+   - Message SQS chỉ được xóa (`deleteMessage`) sau khi DB commit thành công 100%.
+3. **Xác minh Redis Cache-Aside (MISS -> HIT):**
+   ```bash
+   # Lần gọi 1: Cache MISS (Đọc từ RDS, sau đó nạp vào ElastiCache Redis)
+   curl -s "$TARGET_HOST/api/orders?page=1&limit=10"
+   # Output: {"source":"POSTGRESQL_RDS","cacheStatus":"MISS",...}
+
+   # Lần gọi 2: Cache HIT (Đọc trực tiếp từ ElastiCache Redis siêu tốc)
+   curl -s "$TARGET_HOST/api/orders?page=1&limit=10"
+   # Output: {"source":"ELASTICACHE_REDIS","cacheStatus":"HIT",...}
+   ```
+
+---
+
+## 4. Biên bản Evidence Mẫu (Đã Redact Bảo mật)
 
 ```text
-=== SRE PLATFORM SMOKE TEST EXECUTION REPORT ===
-Timestamp:            2026-10-21T02:55:00Z
-Target Base URL:      https://shop.dev.sreplatform.yourdomain.com
-DNS & TLS Gate:       PASSED (HTTP 200, TLS 1.3 Amazon ACM)
-Catalog Cache Gate:   PASSED (Retrieved from Redis in 4.2ms)
-Order Insertion Gate: PASSED (Committed to PostgreSQL in 14.8ms)
-SQS Messaging Gate:   PASSED (Message queued and processed in < 3s)
-Async Worker Gate:    PASSED (Order status updated to COMPLETED)
-Pod Stability Check:  0 Restarts across all namespaces
-Overall Decision:     READY FOR K6 PERFORMANCE TESTING (Lab 09.03)
+================================================================================
+                    SRE CONTROLLED LIVE TEST EVIDENCE REPORT
+================================================================================
+Timestamp:               2026-11-03T08:15:20Z
+Cluster Name:            sre-platform-dev (v1.31)
+AWS Region:              ap-southeast-1
+Account ID:              *** (REDACTED)
+Shared ALB:              k8s-sreplatform-5136128a97 (Active)
+Target Domains:          shop.dev.devopsss.site / argocd.dev.devopsss.site
+--------------------------------------------------------------------------------
+[Phase 1 Baseline Check]:
+  EKS Control Plane:     ACTIVE
+  System NodeGroup:      ACTIVE (3 Nodes: 10.0.10.x, 10.0.11.x)
+  RDS PostgreSQL:        AVAILABLE (Private IP: 10.0.20.98)
+  ElastiCache Redis:     AVAILABLE (TLS Enabled, In-VPC)
+  SQS Queues:            Active (Main Queue + DLQ maxReceives=3)
+  VPC Endpoints Count:   1 (S3 Gateway Endpoint ONLY - Zero new endpoint created)
+--------------------------------------------------------------------------------
+[Phase 2 Controlled Test]:
+  Test Order ID:         test-order-baseline-1793658200
+  RDS Initial Status:    PENDING_PAYMENT (Recorded in orders table)
+  Outbox Event:          OrderCreated (Recorded in order_outbox table)
+  SQS Lifecycle:         Send (OK) -> Receive (OK) -> Delete (OK)
+  Idempotency Check:     Processed in processed_events table
+  Worker Status Update:  PAID (Verified via PostgreSQL query)
+  Redis Cache 1st Call:  MISS (Fetched from RDS in 12ms)
+  Redis Cache 2nd Call:  HIT (Fetched from ElastiCache in 1.4ms)
+================================================================================
+OVERALL DECISION:        BASELINE & CONTROLLED TEST PASSED (PROCEED TO APP3 FIX)
+================================================================================
 ```
 
 ---
 
 ## 5. Điều kiện hoàn thành Gate (Gate Check)
 
-- [ ] Toàn bộ 5 bước của kịch bản kiểm thử khói hoàn thành mà không có lỗi HTTP 4xx hoặc 5xx.
-- [ ] Dữ liệu đơn hàng tồn tại trong PostgreSQL và trạng thái được cập nhật thành công bởi `payment-worker`.
-- [ ] Không có cảnh báo bất thường trong nhật ký của EKS Control Plane hoặc ALB Ingress.
+- [ ] Toàn bộ hạ tầng EKS, RDS, Redis, SQS sẵn sàng và ở trạng thái khỏe mạnh.
+- [ ] Không tạo mới bất kỳ VPC endpoint nào.
+- [ ] Tạo đúng 1 order có test ID duy nhất và chuyển trạng thái thành công sang `PAID`.
+- [ ] Redis thể hiện rõ 2 giai đoạn: Lần 1 `MISS` -> Lần 2 `HIT`.
+- [ ] Toàn bộ Evidence log được che giấu Account ID và không để lộ bí mật/mật khẩu.

@@ -89,6 +89,42 @@ spec:
 
 ---
 
+### Thí nghiệm 3: Kiểm chứng SRE Correctness & Idempotent Consumer
+
+1. **Kiểm thử Xử lý Trùng lặp (Duplicate Message Test):**
+   - Bơm 2 message SQS có cùng một `event_id` (`duplicate-event-001`) vào hàng đợi `reliability-shop-dev-order-queue`.
+   - **Kết quả mong đợi:** Worker chỉ thực hiện tính tiền/cập nhật DB đúng **1 lần duy nhất** nhờ ràng buộc khóa chính trên bảng `processed_events(event_id UNIQUE)`. Message thứ 2 được nhận diện là duplicate và được xóa an toàn mà không double-charge khách hàng.
+2. **Kiểm thử Khi Cơ sở dữ liệu Gặp Lỗi (DB Error Retain Message):**
+   - Mô phỏng DB bị lock hoặc mất kết nối tạm thời khi worker đang cập nhật order.
+   - **Bất biến SRE:** Worker **tuyệt đối KHÔNG gọi `DeleteMessage`** khi DB transaction thất bại.
+   - Message tự động trở lại hàng đợi sau khi hết `VisibilityTimeout` (30 giây) để retry.
+3. **Kiểm thử Transactional Outbox khi SQS Lỗi:**
+   - Giả lập lỗi quyền hoặc timeout khi gửi SQS message trong luồng tạo order.
+   - Do Order và Outbox Event nằm trong cùng 1 ACID transaction, event được bảo toàn an toàn trong bảng `order_outbox` và sẽ được Outbox Relay tiến hành retry sau đó (Zero Event Loss).
+
+---
+
+### Thí nghiệm 4: Poison Message & Cách ly vào Dead-Letter Queue (DLQ)
+
+1. **Gửi một Poison Message có format lỗi cố ý:**
+   ```bash
+   # Gửi một message lỗi JSON parse hoặc thiếu trường bắt buộc
+   aws sqs send-message \
+     --queue-url "https://sqs.ap-southeast-1.amazonaws.com/123456789012/reliability-shop-dev-order-queue" \
+     --message-body '{"bad_payload":"corrupted_data_poison_pill"}' \
+     --region ap-southeast-1
+   ```
+2. **Quan sát Vòng đời Retry:**
+   - Worker nhận message lần 1 -> Lỗi parse -> Không delete -> Hết 30s visibility timeout.
+   - Worker nhận message lần 2 -> Tiếp tục lỗi.
+   - Worker nhận message lần 3 -> Tiếp tục lỗi.
+3. **Xác minh Cách ly vào DLQ:**
+   - Sau 3 lần nhận thất bại (`maxReceiveCount = 3`), SQS tự động chuyển tiếp message sang `reliability-shop-dev-order-dlq`.
+   - Hàng đợi chính `reliability-shop-dev-order-queue` trở lại sạch sẽ, không bị nghẽn các đơn hàng bình thường khác.
+   - CloudWatch Alarm `sre-platform-dev-dlq-messages-visible` kích hoạt trạng thái **ALARM**.
+
+---
+
 ## 4. Báo cáo Nghiệm thu Tính Phục hồi (Resilience Scorecard)
 
 ```text

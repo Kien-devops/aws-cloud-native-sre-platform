@@ -19,16 +19,16 @@ Module 10 là chặng về đích của dự án **AWS Cloud-Native SRE Platform
 |                                  MODULE 10: EXECUTION ARCHITECTURE                                      |
 +---------------------------------------------------------------------------------------------------------+
 |                                                                                                         |
-|   10.01 Resource Inventory         ===>     10.02 Terraform Import Plan                                 |
-|   - Quét Tag Editor & Resources            - Viết khối HCL tương ứng                                    |
-|   - Phát hiện tài nguyên mồ côi            - Chạy `terraform import`                                    |
-|   - Gắn tag chuẩn hóa 5 trường             - Reconcile đến `Plan: 0 changes`                            |
+|   10.01 Resource Inventory         ===>     10.02 GitOps Drift Reconciliation                           |
+|   - Quét Tag Editor & Resources            - Cấu hình selfHeal: true / prune: true                      |
+|   - Phát hiện tài nguyên mồ côi            - Loại trừ dynamic controller resources                      |
+|   - Gắn tag chuẩn hóa 5 trường             - Reconcile đạt 100% Synced & Healthy                        |
 |                 |                                          |                                            |
 |                 v                                          v                                            |
 |   10.03 GitOps Ownership           ===>     10.04 Rebuild & DR Restore                                  |
-|   - Phân định Terraform vs GitOps          - Thử nghiệm dựng từ tài khoản trắng                         |
+|   - Phân định Console vs GitOps            - Thử nghiệm phục hồi từ Git & Console                       |
 |   - Bật Argo CD selfHeal/prune             - Phục hồi RDS snapshot & invariants                         |
-|   - Không import Controller-made           - Đo đạc thực tế RTO (<35m) và RPO (<5m)                     |
+|   - Không chỉnh sửa thủ công               - Đo đạc thực tế RTO (<35m) và RPO (<5m)                     |
 |                 |                                          |                                            |
 |                 v                                          v                                            |
 |   10.05 Reverse Cleanup Order      ===>     10.06 Cost Audit & Handoff                                  |
@@ -46,9 +46,9 @@ Module 10 là chặng về đích của dự án **AWS Cloud-Native SRE Platform
 | Mã bài Lab | Tiêu đề | Trọng tâm kỹ thuật | Console / CLI Path |
 | :--- | :--- | :--- | :--- |
 | [**10.01**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/01-resource-inventory.md) | **Resource Inventory & Ownership** | Quét Tag Editor, tạo Resource Group, gắn tag chuẩn hóa, phát hiện tài nguyên mồ côi | `Resource Groups > Tag Editor` |
-| [**10.02**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/02-terraform-import-plan.md) | **Terraform Import & State Plan** | Nhập VPC, EKS, RDS, SQS, KMS vào Terraform State, giải quyết drift đạt `0 changes` | `iac/terraform/` + AWS CLI |
-| [**10.03**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/03-gitops-ownership.md) | **GitOps Ownership & Drift** | Phân định ranh giới Terraform và Argo CD, ngăn chặn xung đột import kép tài nguyên động | Argo CD UI + `kubectl` |
-| [**10.04**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/04-rebuild-restore.md) | **Rebuild & Restore Verification** | Diễn tập Cold Rebuild từ code Git và snapshot DB, bấm giờ đo đạc RTO và RPO thực tế | Terraform + RDS Console |
+| [**10.02**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/02-gitops-drift-reconciliation.md) | **GitOps Drift Reconciliation** | Tự động hòa giải trôi lệch cấu hình qua Argo CD selfHeal/prune, loại bỏ dynamic drift | Argo CD UI + Git |
+| [**10.03**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/03-gitops-ownership.md) | **GitOps Ownership & Boundaries** | Phân định ranh giới hạ tầng Console và ứng dụng GitOps, cấm chỉnh sửa kubectl trực tiếp | Argo CD UI + `kubectl` |
+| [**10.04**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/04-rebuild-restore.md) | **Rebuild & Restore Verification** | Diễn tập Cold Rebuild từ code Git và snapshot DB, bấm giờ đo đạc RTO và RPO thực tế | AWS Console + GitOps |
 | [**10.05**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/05-cleanup-order.md) | **Reverse Dependency Teardown** | Hủy tài nguyên theo thứ tự phụ thuộc ngược, chạy script săn lùng leak chi phí | AWS Console + Bash Hunter |
 | [**10.06**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/06-cost-audit.md) | **Cost Audit & Production Handoff** | Kiểm toán AWS Billing Cost Explorer, xác nhận $0.00 idle spend, lập biên bản bàn giao | `Billing > Cost Explorer` |
 

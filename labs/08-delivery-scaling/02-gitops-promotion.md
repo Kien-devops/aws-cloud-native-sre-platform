@@ -150,6 +150,32 @@ git push origin promote-order-service-to-staging
 
 ---
 
+### Bước 4: Trật tự Triển khai An toàn 4 Bước (Pre-Approved Deployment Ordering)
+
+Khi phát hành một tính năng hoặc phiên bản nâng cấp có tác động tới dữ liệu và luồng hàng đợi, tuyệt đối không deploy đồng loạt toàn bộ hệ thống. Bắt buộc tuân thủ thứ tự **4 bước phát hành an toàn**:
+
+1. **Bước 1: Additive DB Migration trước (Không bao giờ xóa cột cũ)**
+   - Chạy các câu lệnh SQL bổ sung bảng mới (`order_outbox`, `processed_events`) hoặc thêm các cột mới dạng nullable/default.
+   - Tuyệt đối không drop table, rename table hay drop column.
+2. **Bước 2: Deploy Worker tương thích ngược (`payment-worker`)**
+   - Phiên bản worker mới phải có khả năng đọc và xử lý cả định dạng event cũ lẫn định dạng event mới (Backward Compatibility).
+   - Đảm bảo worker áp dụng cơ chế idempotent consumer qua bảng `processed_events`.
+3. **Bước 3: Deploy Producer / Outbox (`order-service`)**
+   - Sau khi worker đã sẵn sàng tiêu thụ event mới, mới tiến hành deploy `order-service` để bắt đầu emit format event mới hoặc ghi nhận vào bảng outbox.
+4. **Bước 4: Deploy Giao diện UI (`frontend`) cuối cùng**
+   - Deploy `frontend` cập nhật giao diện người dùng hiển thị đúng các trạng thái mới từ API thật.
+
+### Chiến lược Hoàn nguyên An toàn (Safe Rollback Protocol):
+- Khi phát hiện sự cố sau khi rollout, kỹ sư SRE thực hiện **Rollback qua Git revert commit** để đưa cấu hình image digest trở lại phiên bản ổn định trước đó:
+  ```bash
+  git revert <commit-sha-loi>
+  git push origin main
+  # Argo CD sẽ tự động hòa giải pods về image digest cũ
+  ```
+- **Quy tắc Bất biến về Cơ sở dữ liệu (Database Invariant):** Tuyệt đối **KHÔNG rollback hay xóa các bảng/cột mới** trong cơ sở dữ liệu khi revert code. Do đã áp dụng nguyên tắc Additive Migration, code cũ vẫn hoàn toàn tương thích với database hiện tại và không làm gián đoạn hệ thống.
+
+---
+
 ## 4. Xác minh (Verification)
 
 1. Mở **Argo CD Web UI**:

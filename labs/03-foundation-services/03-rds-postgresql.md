@@ -126,43 +126,56 @@ aws rds describe-db-instances \
 
 ---
 
-## 5. Chuyển giao sang IaC (Terraform Snippet)
+## 5. Kiến trúc Schema Cơ sở dữ liệu: Outbox Pattern & Consumer Idempotency
 
-```hcl
-resource "aws_db_subnet_group" "rds" {
-  name       = "sre-platform-dev-rds-subnet-group"
-  subnet_ids = [aws_subnet.private_db_1a.id, aws_subnet.private_db_1b.id]
-}
+Để đáp ứng tiêu chuẩn **SRE Correctness** (đảm bảo không mất mát giao dịch khi sự cố mạng hoặc sập pod), cơ sở dữ liệu `reliability_shop` được thiết kế theo mô hình **Transactional Outbox** và **Idempotent Consumer**:
 
-resource "aws_db_instance" "postgresql" {
-  identifier        = "sre-platform-dev-pg"
-  engine            = "postgres"
-  engine_version    = "16.3"
-  instance_class    = "db.t4g.micro"
-  allocated_storage = 20
-  storage_type      = "gp3"
+```sql
+-- 1. Bảng lưu trữ trạng thái đơn hàng (Orders)
+CREATE TABLE IF NOT EXISTS orders (
+    id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) NOT NULL,
+    item_id VARCHAR(64) NOT NULL,
+    amount NUMERIC(12, 2) NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING_PAYMENT',
+    trace_id VARCHAR(64),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
-  db_name  = "reliability_shop"
-  username = "sre_admin"
-  password = var.db_password # Lấy từ Secrets Manager
+-- 2. Bảng Transactional Outbox (Chống mất mát Event khi publish SQS lỗi)
+CREATE TABLE IF NOT EXISTS order_outbox (
+    id BIGSERIAL PRIMARY KEY,
+    event_id VARCHAR(64) UNIQUE NOT NULL,
+    schema_version VARCHAR(16) NOT NULL DEFAULT '1.0',
+    order_id VARCHAR(64) NOT NULL REFERENCES orders(id),
+    event_type VARCHAR(64) NOT NULL DEFAULT 'OrderCreated',
+    payload JSONB NOT NULL,
+    trace_id VARCHAR(64),
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING', -- PENDING, PUBLISHED, FAILED
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    published_at TIMESTAMP WITH TIME ZONE
+);
 
-  db_subnet_group_name   = aws_db_subnet_group.rds.name
-  vpc_security_group_ids = [aws_security_group.db.id]
-  publicly_accessible    = false
-  kms_key_id             = data.aws_kms_key.main.arn
-  storage_encrypted      = true
-
-  performance_insights_enabled          = true
-  performance_insights_retention_period = 7
-
-  skip_final_snapshot = true
-
-  tags = {
-    Environment = "dev"
-    Project     = "sre-platform"
-  }
-}
+-- 3. Bảng Idempotent Consumer (Chống xử lý trùng lặp khi SQS retry)
+CREATE TABLE IF NOT EXISTS processed_events (
+    event_id VARCHAR(64) PRIMARY KEY,
+    order_id VARCHAR(64) NOT NULL,
+    consumer_name VARCHAR(64) NOT NULL DEFAULT 'payment-worker',
+    processed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 ```
+
+### Nguyên tắc Bất biến SRE (SRE Invariants):
+1. **Atomic Transaction:** Thao tác tạo đơn hàng bắt buộc thực hiện trong cùng 1 Transaction (`orders + order_outbox`):
+   ```sql
+   BEGIN;
+     INSERT INTO orders (id, user_id, item_id, amount, status, trace_id) VALUES (...);
+     INSERT INTO order_outbox (event_id, order_id, payload, trace_id) VALUES (...);
+   COMMIT;
+   ```
+2. **Idempotency Guarantee:** `payment-worker` khi nhận message từ SQS chỉ cập nhật `orders.status = 'PAID'` khi và chỉ khi ghi nhận thành công `event_id` vào `processed_events`. Nếu `event_id` đã tồn tại (Duplicate message), worker bỏ qua và commit xóa message khỏi SQS.
+3. **Additive-Only Migration:** Khi nâng cấp tính năng, mọi thay đổi schema cơ sở dữ liệu phải là **Additive** (chỉ thêm bảng mới hoặc thêm cột có giá trị default/nullable), tuyệt đối không drop table hay rename cột cũ để đảm bảo khả năng tương thích ngược và rollback an toàn.
 
 ---
 

@@ -1,7 +1,10 @@
 # 02.03 — Tối ưu hóa Lưu lượng Mạng với AWS VPC Endpoints (Gateway & Interface)
 
-> **Trạng thái:** Hướng dẫn thực hành chi tiết trên AWS Management Console (Console-first).  
-> **Áp dụng cho:** Định tuyến lưu lượng AWS nội bộ (PrivateLink), giảm độ trễ và cắt giảm chi phí NAT Gateway khi kéo Docker Images và ghi nhật ký S3.
+> **SRE Architecture & FinOps Invariant:**
+> - **Kéo Container Image từ Amazon ECR:** Khi EKS worker nodes kéo image từ ECR, quá trình diễn ra qua 2 giai đoạn:
+>   1. *Authentication & Manifest Lookup:* Đi qua NAT Gateway ra Internet tới public endpoint của ECR (`api.ecr` / `dkr.ecr`) — dung lượng rất nhỏ (vài KB metadata).
+>   2. *Tải Image Layers (Blobs):* Toàn bộ layers thực tế của Docker image được AWS lưu trữ trên Amazon S3. Do VPC đã có sẵn **S3 Gateway Endpoint** (`com.amazonaws.ap-southeast-1.s3`), lưu lượng data transfer nặng nhất (hàng trăm MB/GB) được định tuyến trực tiếp nội bộ trên AWS Backbone qua Gateway Endpoint hoàn toàn **miễn phí ($0.00)** và không gây nghẽn NAT Gateway.
+> - **Chính sách Môi trường Dev:** Để tuân thủ ngân sách FinOps và nguyên tắc *"Zero new VPC endpoints"*, môi trường `dev` **chỉ sử dụng duy nhất S3 Gateway Endpoint**. Không tạo thêm các Interface Endpoints (PrivateLink) cho ECR hay Secrets Manager khi chưa lên Production nhằm tránh phát sinh chi phí cố định (~$0.01/giờ/AZ).
 
 ---
 

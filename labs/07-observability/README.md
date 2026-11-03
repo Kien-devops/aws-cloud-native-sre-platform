@@ -20,6 +20,7 @@ Module 07 xây dựng hệ thống quan sát hiện đại (Observability Stack)
 | [**07.03**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/07-observability/03-loki-tempo.md) | **Grafana Loki & Tempo** | Triển khai Loki và Tempo, cấu hình tích hợp TraceQL và LogQL liên kết qua Trace ID | `gitops/apps/platform/loki-tempo/` |
 | [**07.04**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/07-observability/04-grafana-dashboards.md) | **Dashboards as Code (DaC)** | Tự động import ConfigMap Dashboard: RED metrics, USE metrics và SLO Error Budget Gauge | Grafana UI + Git |
 | [**07.05**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/07-observability/05-observability-checkpoint.md) | **Tri-Signal Correlation Drill** | Diễn tập truy vết 1 lỗi HTTP 500: Từ Grafana Panel -> Tempo Trace -> Loki Log -> Root cause | Grafana Explore |
+| [**07.06**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/07-observability/06-console-observability.md) | **Console Observability: Alarms & DLQ Runbook** | CloudWatch Alarms (DLQ > 0, Oldest Age > 300s), CloudWatch Dashboard, SRE DLQ Replay Runbook | CloudWatch Console |
 
 ---
 

@@ -60,6 +60,17 @@
 - [ ] Diễn tập khôi phục thảm họa (Disaster Recovery Drill) chứng minh RPO < 5p và RTO < 20p.
 - [ ] Sổ tay Runbook và mẫu Blameless Postmortem đã sẵn sàng cho đội ngũ On-call.
 
+### Trụ cột 8: Tiêu chuẩn Chấp thuận Cuối cùng (Acceptance Gate Checklist)
+- [ ] **Một order tạo đúng một payment:** 1 HTTP POST Order tạo đúng 1 bản ghi `orders` và 1 lần xử lý thanh toán `PAID`.
+- [ ] **Duplicate không double-process:** Message SQS trùng lặp `event_id` không gây tính tiền lặp hoặc xử lý lần hai (`processed_events` uniqueness).
+- [ ] **DB lỗi giữ message để retry:** Khi database bị lỗi hoặc timeout, worker không gọi `DeleteMessage`, message được lưu giữ trong SQS để retry.
+- [ ] **Poison message tới DLQ:** Message lỗi định dạng hoặc gây crash được chuyển sang DLQ sau đúng 3 lần nhận (`maxReceiveCount = 3`).
+- [ ] **Redis miss rồi hit:** Lần gọi 1 Cache `MISS` -> đọc RDS -> nạp Cache; Lần gọi 2 Cache `HIT` từ Redis.
+- [ ] **Redis outage fallback RDS:** Khi ngắt kết nối Redis, hệ thống tự động suy giảm tính năng (degrade) sang đọc RDS mà không báo lỗi 500 cho người dùng.
+- [ ] **GitOps digest khớp ECR artifact:** Image SHA256 digest khai báo trong GitOps khớp 100% với container artifact lưu trên Amazon ECR.
+- [ ] **Rollback thành công:** Diễn tập revert Git commit đưa cluster trở về image digest ổn định trước đó mà không gây lỗi hoặc xung đột schema database.
+- [ ] **Evidence đầy đủ, không chứa secret:** Toàn bộ log và báo cáo kiểm toán được redact sạch sẽ (AWS Account ID thay bằng `***`, mật khẩu và token bị che giấu).
+
 ---
 
 ## 3. Mẫu Biên bản Quyết định Go-Live (Sign-off Template)
@@ -103,4 +114,4 @@ Lưu tại `sre/reliability-reports/go-live-readiness-signoff.md`:
 
 - [ ] 100% các tiêu chí trong Bảng Kiểm tra 7 Trụ cột được đánh dấu hoàn thành.
 - [ ] Biên bản nghiệm thu Go-Live Sign-off được ký duyệt bởi các bên liên quan.
-- [ ] Sẵn sàng bước sang Phase 10: Hoàn tất chuyển giao sang Terraform IaC và quy trình dọn dẹp tài nguyên (Handoff & Cleanup).
+- [ ] Sẵn sàng bước sang Phase 10: Hoàn tất chuyển giao quyền sở hữu GitOps và quy trình dọn dẹp tài nguyên chi phí $0.00 (Handoff & Reverse Cleanup).
