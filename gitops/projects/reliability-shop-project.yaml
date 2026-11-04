@@ -15,6 +15,10 @@ spec:
   destinations:
     - namespace: reliability-shop
       server: https://kubernetes.default.svc
+    - namespace: reliability-shop-staging
+      server: https://kubernetes.default.svc
+    - namespace: reliability-shop-prod
+      server: https://kubernetes.default.svc
   # STRICT SECURITY: Deny all cluster-scoped resources for application project
   clusterResourceWhitelist: []
   namespaceResourceWhitelist:
