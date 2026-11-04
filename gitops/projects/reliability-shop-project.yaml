@@ -32,4 +32,8 @@ spec:
       kind: '*'
     - group: 'argoproj.io'
       kind: '*'
+    - group: 'autoscaling'
+      kind: '*'
+    - group: 'keda.sh'
+      kind: '*'
 
