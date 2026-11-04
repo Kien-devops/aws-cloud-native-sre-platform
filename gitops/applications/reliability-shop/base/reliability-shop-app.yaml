@@ -289,7 +289,6 @@ metadata:
     app.kubernetes.io/name: payment-worker
     app.kubernetes.io/part-of: reliability-shop
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: payment-worker

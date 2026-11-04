@@ -29,6 +29,12 @@ spec:
       kind: Deployment
       jsonPointers:
         - /spec/replicas
+        - /spec/template/metadata/annotations/kubectl.kubernetes.io~1restartedAt
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers:
+        - /spec/replicas
+        - /spec/restartAt
     - group: admissionregistration.k8s.io
       kind: ValidatingWebhookConfiguration
       name: keda-admission
@@ -67,6 +73,12 @@ spec:
       kind: Deployment
       jsonPointers:
         - /spec/replicas
+        - /spec/template/metadata/annotations/kubectl.kubernetes.io~1restartedAt
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers:
+        - /spec/replicas
+        - /spec/restartAt
     - group: admissionregistration.k8s.io
       kind: ValidatingWebhookConfiguration
       name: keda-admission
@@ -105,6 +117,12 @@ spec:
       kind: Deployment
       jsonPointers:
         - /spec/replicas
+        - /spec/template/metadata/annotations/kubectl.kubernetes.io~1restartedAt
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers:
+        - /spec/replicas
+        - /spec/restartAt
     - group: admissionregistration.k8s.io
       kind: ValidatingWebhookConfiguration
       name: keda-admission
@@ -141,6 +159,12 @@ spec:
       kind: Deployment
       jsonPointers:
         - /spec/replicas
+        - /spec/template/metadata/annotations/kubectl.kubernetes.io~1restartedAt
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers:
+        - /spec/replicas
+        - /spec/restartAt
     - group: admissionregistration.k8s.io
       kind: ValidatingWebhookConfiguration
       name: keda-admission
