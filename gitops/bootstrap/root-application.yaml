@@ -32,6 +32,7 @@ metadata:
   labels:
     app.kubernetes.io/name: reliability-shop
     app.kubernetes.io/part-of: sre-platform
+    environment: dev
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -39,7 +40,7 @@ spec:
   source:
     repoURL: https://github.com/Kien-devops/aws-cloud-native-sre-platform.git
     targetRevision: HEAD
-    path: gitops/applications/reliability-shop/base
+    path: gitops/applications/reliability-shop/envs/dev
   destination:
     server: https://kubernetes.default.svc
     namespace: reliability-shop
@@ -47,5 +48,57 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: reliability-shop-staging
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: reliability-shop-staging
+    app.kubernetes.io/part-of: sre-platform
+    environment: staging
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: reliability-shop
+  source:
+    repoURL: https://github.com/Kien-devops/aws-cloud-native-sre-platform.git
+    targetRevision: HEAD
+    path: gitops/applications/reliability-shop/envs/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: reliability-shop-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: reliability-shop-prod
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: reliability-shop-prod
+    app.kubernetes.io/part-of: sre-platform
+    environment: prod
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: reliability-shop
+  source:
+    repoURL: https://github.com/Kien-devops/aws-cloud-native-sre-platform.git
+    targetRevision: HEAD
+    path: gitops/applications/reliability-shop/envs/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: reliability-shop-prod
+  # CHÍNH SÁCH BẢO VỆ PRODUCTION: KHÔNG BẬT AUTOMATED SYNC (MANUAL SYNC GATE)
+  syncPolicy:
     syncOptions:
       - CreateNamespace=true
