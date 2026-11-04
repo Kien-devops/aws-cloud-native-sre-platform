@@ -33,16 +33,16 @@ configMapGenerator:
 images:
   - name: reliabilityshop/frontend
     newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/frontend
-    digest: sha256:dfabf86a6c8b60b40f2ed6b402c2a3a876b2588e8f3340f7ab0026e87324656b
+    digest: sha256:dd61a51f1214d10a147cbed168781e7f033b3e8e1fed8fabfbdc6e0e8ba81bfb
   - name: reliabilityshop/order-service
     newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/order-service
-    digest: sha256:6dd565982913d94bc86c43a9ac0cf91d87e4b64ef9424c5e3fec8558cd588093
+    digest: sha256:8b626ec0c645d0597f98f99cfe48b26e08919641479af2791c48337b8bfaf6db
   - name: reliabilityshop/inventory-service
     newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/inventory-service
-    digest: sha256:cb5f17d273e143adb3ee5df056e6a01853d064658bd6f8cbd18a9caccbe0d5e3
+    digest: sha256:e2c679da9d3946d5561da1e426bd6ff3545a2a4cece742add293db66099bf371
   - name: reliabilityshop/auth-service
     newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/auth-service
-    digest: sha256:d35877cee65457373e71f12f986bf1ff968a7f723a6dd2961ba9198315c0ac88
+    digest: sha256:6c7c10bb0d763db04a23ba890b8621e4cfaea2550b46a8d964aad5659e8ed96d
   - name: reliabilityshop/payment-worker
     newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/payment-worker
-    digest: sha256:4755b66ec4b90ccc4d8caf98fa25d68008f82145cd8a160bd4c4bcb966c6f633
+    digest: sha256:7a091f1b86bbc0bab46ce2a64ee88dae6660e91d00677943dbe9d8e391ef8ce3
