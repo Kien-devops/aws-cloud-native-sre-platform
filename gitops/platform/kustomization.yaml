@@ -7,3 +7,4 @@ resources:
   - monitoring
   - keda
   - karpenter
+  - argo-rollouts
