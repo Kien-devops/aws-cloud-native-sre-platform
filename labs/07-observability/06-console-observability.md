@@ -116,19 +116,20 @@ aws cloudwatch put-metric-alarm \
 
 ---
 
-### Bước 4: Tạo CloudWatch Dashboard Tổng hợp Nền tảng
+### Bước 4: Tạo CloudWatch Dashboard Tổng hợp Nền tảng (Đa Môi trường Dev, Staging, Prod)
 
-Dashboard `sre-platform-dev-foundation-telemetry` tổng hợp 4 widget cốt lõi:
-1. **SQS Queue & DLQ Activity:** Biểu đồ đường đo `NumberOfMessagesSent`, `Received`, `Deleted` và `DLQ Depth`.
-2. **RDS PostgreSQL Health:** Đo `DatabaseConnections`, `CPUUtilization` và `FreeStorageSpace`.
-3. **ElastiCache Redis Performance:** Đo `CacheHits`, `CacheMisses`, `CurrConnections` và `EngineCPUUtilization`.
-4. **SQS Processing Lag:** Đo `ApproximateAgeOfOldestMessage`.
+Dashboard `sre-platform-dev-foundation-telemetry` tổng hợp trực quan toàn bộ hệ thống qua các widget cốt lõi:
+1. **SQS - Order Queue & DLQ Depth (Dev, Staging, Prod):** Biểu đồ đo `NumberOfMessagesSent`, `Received`, `Deleted`, `Visible Depth` và `DLQ Depth` trên cả 3 môi trường phân lập (`dev`, `staging`, `prod`).
+2. **RDS PostgreSQL - Connections & CPU:** Đo `DatabaseConnections`, `CPUUtilization` và `FreeStorageSpace` của RDS instance `sre-platform-dev-pg`.
+3. **ElastiCache Redis - Cache Performance:** Đo `CacheHits`, `CacheMisses`, `CurrConnections` và `EngineCPUUtilization` của Redis cluster `sre-platform-dev-redis-001`.
+4. **SQS - Processing Lag (Age of Oldest Message):** Đo độ trễ xử lý tin nhắn (`ApproximateAgeOfOldestMessage`) đồng thời trên cả 3 hàng đợi `dev`, `staging`, `prod`.
+5. **Per-Environment Drilldown (Row 3):** 3 widget con chi tiết tách riêng cho từng môi trường (Dev, Staging, Prod).
 
 **Lệnh CLI (đã thực thi):**
 ```bash
 aws cloudwatch put-dashboard \
   --dashboard-name sre-platform-dev-foundation-telemetry \
-  --dashboard-body file://scratch/cw_dashboard.json \
+  --dashboard-body file://scratch/dashboard.json \
   --region ap-southeast-1
 ```
 
@@ -161,7 +162,7 @@ flowchart TD
    - Đảm bảo hàng đợi DLQ đã bật quyền Redrive:
    ```bash
    aws sqs set-queue-attributes \
-     --queue-url https://sqs.ap-southeast-1.amazonaws.com/620306387033/reliability-shop-dev-order-dlq \
+     --queue-url https://sqs.ap-southeast-1.amazonaws.com/123456789012/reliability-shop-dev-order-dlq \
      --attributes '{"RedriveAllowPolicy":"{\"redrivePermission\":\"allowAll\"}"}' \
      --region ap-southeast-1
    ```
@@ -193,7 +194,7 @@ flowchart TD
     "DashboardEntries": [
         {
             "DashboardName": "sre-platform-dev-foundation-telemetry",
-            "DashboardArn": "arn:aws:cloudwatch::620306387033:dashboard/sre-platform-dev-foundation-telemetry",
+            "DashboardArn": "arn:aws:cloudwatch::123456789012:dashboard/sre-platform-dev-foundation-telemetry",
             "LastModified": "2026-11-03T20:29:52.000Z"
         }
     ]
