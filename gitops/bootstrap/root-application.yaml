@@ -23,6 +23,11 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -50,6 +55,11 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -77,6 +87,11 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -102,3 +117,8 @@ spec:
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
