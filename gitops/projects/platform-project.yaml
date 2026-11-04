@@ -29,10 +29,11 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: keda
       server: https://kubernetes.default.svc
+    - namespace: argo-rollouts
+      server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: '*'
       kind: '*'
   namespaceResourceWhitelist:
     - group: '*'
       kind: '*'
-
