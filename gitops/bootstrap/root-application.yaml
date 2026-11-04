@@ -32,8 +32,8 @@ spec:
     - group: admissionregistration.k8s.io
       kind: ValidatingWebhookConfiguration
       name: keda-admission
-      jsonPointers:
-        - /webhooks/0/clientConfig/caBundle
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -70,8 +70,8 @@ spec:
     - group: admissionregistration.k8s.io
       kind: ValidatingWebhookConfiguration
       name: keda-admission
-      jsonPointers:
-        - /webhooks/0/clientConfig/caBundle
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -108,8 +108,8 @@ spec:
     - group: admissionregistration.k8s.io
       kind: ValidatingWebhookConfiguration
       name: keda-admission
-      jsonPointers:
-        - /webhooks/0/clientConfig/caBundle
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -144,6 +144,7 @@ spec:
     - group: admissionregistration.k8s.io
       kind: ValidatingWebhookConfiguration
       name: keda-admission
-      jsonPointers:
-        - /webhooks/0/clientConfig/caBundle
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+
 
