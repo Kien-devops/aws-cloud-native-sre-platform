@@ -6,10 +6,6 @@ namespace: reliability-shop-prod
 resources:
   - ../../base
 
-labels:
-  - pairs:
-      environment: prod
-
 patches:
   - target:
       kind: Ingress

@@ -6,9 +6,6 @@ namespace: reliability-shop
 resources:
   - ../../base
 
-commonLabels:
-  environment: dev
-
 images:
   - name: reliabilityshop/frontend
     newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/frontend
