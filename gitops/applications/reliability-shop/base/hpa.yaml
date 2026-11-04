@@ -8,10 +8,10 @@ metadata:
     app.kubernetes.io/part-of: reliability-shop
 spec:
   scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
     name: order-service
-  minReplicas: 2
+  minReplicas: 5
   maxReplicas: 10
   metrics:
     - type: Resource

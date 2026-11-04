@@ -8,6 +8,9 @@ resources:
   - ingress.yaml
   - hpa.yaml
   - keda-scaledobject.yaml
+  - order-service-analysis-template.yaml
+  - order-service-rollout-services.yaml
+  - order-service-rollout.yaml
 
 generatorOptions:
   disableNameSuffixHash: true
