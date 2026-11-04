@@ -6,6 +6,8 @@ resources:
   - external-secret.yaml
   - reliability-shop-app.yaml
   - ingress.yaml
+  - hpa.yaml
+  - keda-scaledobject.yaml
 
 generatorOptions:
   disableNameSuffixHash: true

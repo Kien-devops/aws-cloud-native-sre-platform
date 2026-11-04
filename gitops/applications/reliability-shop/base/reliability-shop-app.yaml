@@ -55,8 +55,8 @@ spec:
             httpGet:
               path: /health
               port: 8080
-            failureThreshold: 15
-            periodSeconds: 2
+            failureThreshold: 30
+            periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /health
@@ -155,8 +155,8 @@ spec:
             httpGet:
               path: /health
               port: 8080
-            failureThreshold: 15
-            periodSeconds: 2
+            failureThreshold: 30
+            periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /health
@@ -239,8 +239,8 @@ spec:
             httpGet:
               path: /health
               port: 8080
-            failureThreshold: 15
-            periodSeconds: 2
+            failureThreshold: 30
+            periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /health
@@ -328,8 +328,8 @@ spec:
             httpGet:
               path: /health
               port: 8080
-            failureThreshold: 15
-            periodSeconds: 2
+            failureThreshold: 30
+            periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /health
@@ -428,8 +428,8 @@ spec:
             httpGet:
               path: /health
               port: 8080
-            failureThreshold: 15
-            periodSeconds: 2
+            failureThreshold: 30
+            periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /health
