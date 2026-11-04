@@ -18,6 +18,25 @@ patches:
         path: /metadata/annotations/alb.ingress.kubernetes.io~1group.order
         value: "12"
 
+  - target:
+      kind: ConfigMap
+      name: app-config
+    patch: |-
+      - op: replace
+        path: /data/SQS_QUEUE_NAME
+        value: reliability-shop-prod-order-queue
+  - target:
+      group: keda.sh
+      kind: ScaledObject
+      name: payment-worker-scaler
+    patch: |-
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 2
+      - op: replace
+        path: /spec/triggers/0/metadata/queueURL
+        value: https://sqs.ap-southeast-1.amazonaws.com/620306387033/reliability-shop-prod-order-queue
+
 images:
   - name: reliabilityshop/frontend
     newName: 620306387033.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/frontend
