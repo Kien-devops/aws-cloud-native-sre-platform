@@ -29,6 +29,11 @@ spec:
       kind: Deployment
       jsonPointers:
         - /spec/replicas
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: keda-admission
+      jsonPointers:
+        - /webhooks/0/clientConfig/caBundle
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -62,6 +67,11 @@ spec:
       kind: Deployment
       jsonPointers:
         - /spec/replicas
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: keda-admission
+      jsonPointers:
+        - /webhooks/0/clientConfig/caBundle
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -95,6 +105,11 @@ spec:
       kind: Deployment
       jsonPointers:
         - /spec/replicas
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: keda-admission
+      jsonPointers:
+        - /webhooks/0/clientConfig/caBundle
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -126,3 +141,9 @@ spec:
       kind: Deployment
       jsonPointers:
         - /spec/replicas
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: keda-admission
+      jsonPointers:
+        - /webhooks/0/clientConfig/caBundle
+
