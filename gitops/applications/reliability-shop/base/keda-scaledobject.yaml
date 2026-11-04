@@ -23,7 +23,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: payment-worker
-  minReplicaCount: 0
+  minReplicaCount: 2
   maxReplicaCount: 10
   cooldownPeriod: 60
   pollingInterval: 10
