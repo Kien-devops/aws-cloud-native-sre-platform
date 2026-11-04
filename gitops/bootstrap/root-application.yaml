@@ -39,7 +39,7 @@ spec:
   project: reliability-shop
   source:
     repoURL: https://github.com/Kien-devops/aws-cloud-native-sre-platform.git
-    targetRevision: HEAD
+    targetRevision: dev
     path: gitops/applications/reliability-shop/envs/dev
   destination:
     server: https://kubernetes.default.svc
@@ -66,7 +66,7 @@ spec:
   project: reliability-shop
   source:
     repoURL: https://github.com/Kien-devops/aws-cloud-native-sre-platform.git
-    targetRevision: HEAD
+    targetRevision: staging
     path: gitops/applications/reliability-shop/envs/staging
   destination:
     server: https://kubernetes.default.svc
@@ -93,7 +93,7 @@ spec:
   project: reliability-shop
   source:
     repoURL: https://github.com/Kien-devops/aws-cloud-native-sre-platform.git
-    targetRevision: HEAD
+    targetRevision: main
     path: gitops/applications/reliability-shop/envs/prod
   destination:
     server: https://kubernetes.default.svc
