@@ -1,28 +1,28 @@
-﻿# 08.02 â€” Quy trÃ¬nh ThÄƒng cáº¥p MÃ´i trÆ°á»ng GitOps (Environment Promotion Workflow)
+# 08.02 — Quy trình Thăng cấp Môi trường GitOps (Environment Promotion Workflow)
 
-> **Tráº¡ng thÃ¡i:** HÆ°á»›ng dáº«n thá»±c hÃ nh chuáº©n má»±c SRE/GitOps chuyá»ƒn giao phiÃªn báº£n an toÃ n qua GitHub Actions, Pull Requests, Immutable Image Digests vÃ  Argo CD.
-> **Ãp dá»¥ng cho:** ThÄƒng cáº¥p cÃ³ kiá»ƒm soÃ¡t tá»« `dev` -> `staging` -> `prod` vá»›i Quality Gate báº¯t buá»™c vÃ  chÃ­nh sÃ¡ch báº£o vá»‡ mÃ´i trÆ°á»ng Production.
-
----
-
-## 1. Má»¥c tiÃªu vÃ  NguyÃªn táº¯c SRE
-
-- **Má»¥c tiÃªu:**
-  - XÃ¢y dá»±ng quy trÃ¬nh thÄƒng cáº¥p phiÃªn báº£n (**Environment Promotion**) tá»± Ä‘á»™ng hÃ³a nhÆ°ng hoÃ n toÃ n cÃ³ thá»ƒ kiá»ƒm toÃ¡n (**Auditable & Traceable**) thÃ´ng qua GitHub Pull Requests (PR).
-  - TÃ¡ch báº¡ch chiáº¿n lÆ°á»£c Ä‘á»“ng bá»™ cá»§a Argo CD theo tá»«ng mÃ´i trÆ°á»ng:
-    - **`dev` Environment:** Tá»± Ä‘á»™ng Ä‘á»“ng bá»™ (`Automatic Sync`) vÃ  tá»± phá»¥c há»“i (`Self-Heal`) tá»©c thá»i.
-    - **`staging` Environment:** Tá»± Ä‘á»™ng Ä‘á»“ng bá»™ khi merge PR vÃ o nhÃ¡nh `main`.
-    - **`prod` Environment:** YÃªu cáº§u phÃª duyá»‡t thá»§ cÃ´ng (**Manual Sync Gate**) hoáº·c cá»­a sá»• phÃ¡t hÃ nh (Change Window) cÃ³ phÃª duyá»‡t cá»§a Release Manager.
-  - Sá»­ dá»¥ng **ECR Immutable Digest (`sha256:...`)** thay vÃ¬ image tag cÃ³ thá»ƒ bá»‹ ghi Ä‘Ã¨, Ä‘áº£m báº£o tÃ­nh báº¥t biáº¿n tuyá»‡t Ä‘á»‘i cá»§a artifact khi chuyá»ƒn giao qua cÃ¡c mÃ´i trÆ°á»ng.
-- **NguyÃªn táº¯c SRE:**
-  - **No `kubectl` in CI:** CI runner tuyá»‡t Ä‘á»‘i khÃ´ng giá»¯ kubeconfig vÃ  khÃ´ng bao giá» gá»i lá»‡nh `kubectl` trá»±c tiáº¿p tá»›i cluster. Má»i hÃ nh Ä‘á»™ng deploy pháº£i Ä‘i qua GitOps Reconciler (Argo CD).
-  - **Evidence-Based Promotion (Quality Gates at PR):** Má»—i Pull Request thÄƒng cáº¥p báº¯t buá»™c pháº£i Ä‘Ã­nh kÃ¨m bÃ¡o cÃ¡o kiá»ƒm thá»­ tá»± Ä‘á»™ng (Unit Test, Gitleaks, Trivy Scan 0 Critical/High CVEs) Ä‘á»ƒ ngÆ°á»i duyá»‡t cÃ³ cÄƒn cá»© tin cáº­y.
-  - **Identical Artifact Across Environments:** Image cháº¡y á»Ÿ `prod` pháº£i lÃ  chÃ­nh xÃ¡c image cÃ³ SHA digest Ä‘Ã£ Ä‘Æ°á»£c kiá»ƒm thá»­ vÃ  nghiá»‡m thu thÃ nh cÃ´ng á»Ÿ `dev` vÃ  `staging` (Build Once, Deploy Many).
-  - **Zero-Downtime Safe Ordering:** Triá»ƒn khai theo thá»© tá»± an toÃ n: Database Additive Migration âž” Worker tÆ°Æ¡ng thÃ­ch ngÆ°á»£c âž” Service Producer âž” Frontend.
+> **Trạng thái:** Hướng dẫn thực hành chuẩn mực SRE/GitOps chuyển giao phiên bản an toàn qua GitHub Actions, Pull Requests, Immutable Image Digests và Argo CD.
+> **Áp dụng cho:** Thăng cấp có kiểm soát từ `dev` -> `staging` -> `prod` với Quality Gate bắt buộc và chính sách bảo vệ môi trường Production.
 
 ---
 
-## 2. MÃ´ hÃ¬nh Luá»“ng ThÄƒng cáº¥p GitOps (Promotion Architecture)
+## 1. Mục tiêu và Nguyên tắc SRE
+
+- **Mục tiêu:**
+  - Xây dựng quy trình thăng cấp phiên bản (**Environment Promotion**) tự động hóa nhưng hoàn toàn có thể kiểm toán (**Auditable & Traceable**) thông qua GitHub Pull Requests (PR).
+  - Tách bạch chiến lược đồng bộ của Argo CD theo từng môi trường:
+    - **`dev` Environment:** Tự động đồng bộ (`Automatic Sync`) và tự phục hồi (`Self-Heal`) tức thời.
+    - **`staging` Environment:** Tự động đồng bộ khi merge PR vào nhánh `main`.
+    - **`prod` Environment:** Yêu cầu phê duyệt thủ công (**Manual Sync Gate**) hoặc cửa sổ phát hành (Change Window) có phê duyệt của Release Manager.
+  - Sử dụng **ECR Immutable Digest (`sha256:...`)** thay vì image tag có thể bị ghi đè, đảm bảo tính bất biến tuyệt đối của artifact khi chuyển giao qua các môi trường.
+- **Nguyên tắc SRE:**
+  - **No `kubectl` in CI:** CI runner tuyệt đối không giữ kubeconfig và không bao giờ gọi lệnh `kubectl` trực tiếp tới cluster. Mọi hành động deploy phải đi qua GitOps Reconciler (Argo CD).
+  - **Evidence-Based Promotion (Quality Gates at PR):** Mỗi Pull Request thăng cấp bắt buộc phải đính kèm báo cáo kiểm thử tự động (Unit Test, Gitleaks, Trivy Scan 0 Critical/High CVEs) để người duyệt có căn cứ tin cậy.
+  - **Identical Artifact Across Environments:** Image chạy ở `prod` phải là chính xác image có SHA digest đã được kiểm thử và nghiệm thu thành công ở `dev` và `staging` (Build Once, Deploy Many).
+  - **Zero-Downtime Safe Ordering:** Triển khai theo thứ tự an toàn: Database Additive Migration ➔ Worker tương thích ngược ➔ Service Producer ➔ Frontend.
+
+---
+
+## 2. Mô hình Luồng Thăng cấp GitOps (Promotion Architecture)
 
 ```mermaid
 sequenceDiagram
@@ -31,30 +31,30 @@ sequenceDiagram
     participant CI as GitHub Actions (App3)
     participant ECR as Amazon ECR
     participant GitOps as Repo aws-cloud-native-sre-platform
-    actor SRE as Ká»¹ sÆ° SRE / Lead
+    actor SRE as Kỹ sư SRE / Lead
     participant Argo as Argo CD Reconciler
     participant EKS as Amazon EKS Cluster
 
-    Dev->>CI: Push code lÃªn nhÃ¡nh main cá»§a App3
-    CI->>CI: Cháº¡y Unit tests (ci.yml) & QuÃ©t CVEs/Secrets (security-scan.yml)
-    CI->>ECR: Build Docker & Äáº©y 5 images (tag: git-<sha>)
-    ECR-->>CI: Tráº£ vá» Immutable Digest (sha256:...)
-    CI->>GitOps: Táº¡o nhÃ¡nh gitops/app3-promote-<sha>, cáº­p nháº­t digest vÃ o kustomization.yaml
-    CI->>GitOps: Tá»± Ä‘á»™ng má»Ÿ PULL REQUEST kÃ¨m BÃ¡o CÃ¡o ÄÃ¡nh GiÃ¡ SRE
-    Note over GitOps,SRE: Pull Request chá» duyá»‡t trÃªn GitHub
-    SRE->>GitOps: Review báº£ng kiá»ƒm Ä‘á»‹nh cháº¥t lÆ°á»£ng (0 CVE, Tests Passed) âž” MERGE PR
-    GitOps->>Argo: NhÃ¡nh main Ä‘Æ°á»£c cáº­p nháº­t desired state má»›i
-    Argo->>EKS: Reconcile & Thá»±c hiá»‡n Zero-Downtime Rolling Update
-    EKS-->>Argo: Pods má»›i Running (1/1 Healthy)
+    Dev->>CI: Push code lên nhánh main của App3
+    CI->>CI: Chạy Unit tests (ci.yml) & Quét CVEs/Secrets (security-scan.yml)
+    CI->>ECR: Build Docker & Đẩy 5 images (tag: git-<sha>)
+    ECR-->>CI: Trả về Immutable Digest (sha256:...)
+    CI->>GitOps: Tạo nhánh gitops/app3-promote-<sha>, cập nhật digest vào kustomization.yaml
+    CI->>GitOps: Tự động mở PULL REQUEST kèm Báo Cáo Đánh Giá SRE
+    Note over GitOps,SRE: Pull Request chờ duyệt trên GitHub
+    SRE->>GitOps: Review bảng kiểm định chất lượng (0 CVE, Tests Passed) ➔ MERGE PR
+    GitOps->>Argo: Nhánh main được cập nhật desired state mới
+    Argo->>EKS: Reconcile & Thực hiện Zero-Downtime Rolling Update
+    EKS-->>Argo: Pods mới Running (1/1 Healthy)
 ```
 
 ---
 
-## 3. CÃ¡c bÆ°á»›c Triá»ƒn khai Chi tiáº¿t (Step-by-Step Implementation)
+## 3. Các bước Triển khai Chi tiết (Step-by-Step Implementation)
 
-### BÆ°á»›c 1: Cáº¥u hÃ¬nh Khai bÃ¡o Image Digest trong Kustomize Base
+### Bước 1: Cấu hình Khai báo Image Digest trong Kustomize Base
 
-Cáº¥u trÃºc file `gitops/applications/reliability-shop/base/kustomization.yaml` sá»­ dá»¥ng `digest` thay vÃ¬ `newTag`:
+Cấu trúc file `gitops/applications/reliability-shop/base/kustomization.yaml` sử dụng `digest` thay vì `newTag`:
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -89,7 +89,7 @@ configMapGenerator:
       - OTEL_METRICS_EXPORTER=otlp
       - NODE_OPTIONS=--require /otel-auto-instrumentation/autoinstrumentation.js
 
-# Cáº­p nháº­t phiÃªn báº£n tá»± Ä‘á»™ng báº±ng Immutable ECR Digests
+# Cập nhật phiên bản tự động bằng Immutable ECR Digests
 images:
   - name: reliabilityshop/frontend
     newName: 123456789012.dkr.ecr.ap-southeast-1.amazonaws.com/reliabilityshop/frontend
@@ -110,9 +110,9 @@ images:
 
 ---
 
-### BÆ°á»›c 2: Tá»± Ä‘á»™ng hÃ³a Má»Ÿ Pull Request tá»« GitHub Actions CI
+### Bước 2: Tự động hóa Mở Pull Request từ GitHub Actions CI
 
-Trong repository `app3`, khai bÃ¡o job `promote-gitops` cháº¡y ná»‘i tiáº¿p ngay sau khi cÃ¡c bÆ°á»›c kiá»ƒm thá»­ vÃ  Ä‘áº©y ECR hoÃ n thÃ nh (`.github/workflows/build-push.yml`):
+Trong repository `app3`, khai báo job `promote-gitops` chạy nối tiếp ngay sau khi các bước kiểm thử và đẩy ECR hoàn thành (`.github/workflows/build-push.yml`):
 
 ```yaml
   promote-gitops:
@@ -181,7 +181,7 @@ Trong repository `app3`, khai bÃ¡o job `promote-gitops` cháº¡y ná»‘i ti
               source, count = re.subn(pattern, rf'\g<1>{digest}', source)
           path.write_text(source, encoding='utf-8', newline='\n')
 
-          rows = ["| Dá»‹ch vá»¥ (Service) | Tag Image | ECR Immutable Digest |", "| :--- | :--- | :--- |"]
+          rows = ["| Dịch vụ (Service) | Tag Image | ECR Immutable Digest |", "| :--- | :--- | :--- |"]
           for name, (repo, dig) in digests.items():
               rows.append(f"| `{name}` | `git-{commit[:7]}` | `{dig}` |")
           with open('digests_table.md', 'w', encoding='utf-8') as f:
@@ -215,24 +215,24 @@ Trong repository `app3`, khai bÃ¡o job `promote-gitops` cháº¡y ná»‘i ti
           DIGEST_TABLE=$(cat ../digests_table.md)
 
           PR_BODY=$(cat <<EOF
-          ## ðŸš€ SRE GitOps Promotion: App3 Commit \`$SHORT_SHA\`
+          ## 🚀 SRE GitOps Promotion: App3 Commit \`$SHORT_SHA\`
 
-          ### ðŸ›¡ï¸ 1. ÄÃ¡nh giÃ¡ QuÃ¡ trÃ¬nh CI & Quality Gates
-          | Háº¡ng má»¥c kiá»ƒm tra | CÃ´ng cá»¥ thá»±c hiá»‡n | Tráº¡ng thÃ¡i | ÄÃ¡nh giÃ¡ SRE |
+          ### 🛡️ 1. Đánh giá Quá trình CI & Quality Gates
+          | Hạng mục kiểm tra | Công cụ thực hiện | Trạng thái | Đánh giá SRE |
           | :--- | :--- | :---: | :--- |
-          | **Unit & Integration Tests** | Node.js Test Runner | âœ… **PASSED** | 100% tests Ä‘áº¡t, Code Coverage >= 80% |
-          | **Secret Leak Scanning** | Gitleaks | âœ… **PASSED** | 0 secrets, credentials hoáº·c token rÃ² rá»‰ |
-          | **Container Vulnerability** | Aqua Trivy Scanner | âœ… **PASSED** | Äáº¡t chuáº©n: **0 CRITICAL, 0 HIGH CVEs** |
-          | **Immutable Artifacts** | Amazon ECR | âœ… **STORED** | ÄÃ£ Ä‘áº©y 5 image báº¥t biáº¿n lÃªn ECR Registry |
+          | **Unit & Integration Tests** | Node.js Test Runner | ✅ **PASSED** | 100% tests đạt, Code Coverage >= 80% |
+          | **Secret Leak Scanning** | Gitleaks | ✅ **PASSED** | 0 secrets, credentials hoặc token rò rỉ |
+          | **Container Vulnerability** | Aqua Trivy Scanner | ✅ **PASSED** | Đạt chuẩn: **0 CRITICAL, 0 HIGH CVEs** |
+          | **Immutable Artifacts** | Amazon ECR | ✅ **STORED** | Đã đẩy 5 image bất biến lên ECR Registry |
 
           ---
 
-          ### ðŸ“¦ 2. Danh sÃ¡ch Image Digests Äá» xuáº¥t Cáº­p nháº­t
+          ### 📦 2. Danh sách Image Digests Đề xuất Cập nhật
           $DIGEST_TABLE
 
           ---
 
-          ### ðŸ” 3. ThÃ´ng tin Truy váº¿t Nguá»“n gá»‘c (Traceability)
+          ### 🔍 3. Thông tin Truy vết Nguồn gốc (Traceability)
           * **Source Repository:** \`Kien-devops/app3\`
           * **Commit SHA:** [\`$APP_COMMIT\`](https://github.com/Kien-devops/app3/commit/$APP_COMMIT)
           * **Commit Message:** \`$COMMIT_MSG\`
@@ -240,16 +240,18 @@ Trong repository `app3`, khai bÃ¡o job `promote-gitops` cháº¡y ná»‘i ti
           * **CI Pipeline Run:** [View Workflow Run]($RUN_URL)
 
           ---
-          > ðŸ’¡ **HÆ°á»›ng dáº«n duyá»‡t (Merge Gate):**
-          > Sau khi kiá»ƒm tra diff vÃ  báº£ng Ä‘Ã¡nh giÃ¡ cháº¥t lÆ°á»£ng bÃªn trÃªn, Ká»¹ sÆ° SRE / Lead chá»‰ cáº§n báº¥m **"Merge pull request"**.
-          > Argo CD sáº½ tá»± Ä‘á»™ng phÃ¡t hiá»‡n nhÃ¡nh \`main\` thay Ä‘á»•i vÃ  triá»ƒn khai phiÃªn báº£n má»›i lÃªn cá»¥m EKS theo nguyÃªn táº¯c GitOps.
+          > 💡 **Hướng dẫn duyệt (Merge Gate):**
+          > Sau khi kiểm tra diff và bảng đánh giá chất lượng bên trên, Kỹ sư SRE / Lead chỉ cần bấm **"Merge pull request"**.
+          > Argo CD sẽ tự động phát hiện nhánh \`main\` thay đổi và triển khai phiên bản mới lên cụm EKS theo nguyên tắc GitOps.
           EOF
           )
 
           EXISTING_PR=$(gh pr list --repo Kien-devops/aws-cloud-native-sre-platform --head "$BRANCH" --json number --jq '.[0].number')
           if [ -n "$EXISTING_PR" ]; then
+            echo "Updating existing PR #$EXISTING_PR"
             gh pr edit "$EXISTING_PR" --repo Kien-devops/aws-cloud-native-sre-platform --title "deploy(app3): promote $SHORT_SHA image digests" --body "$PR_BODY"
           else
+            echo "Creating new PR"
             gh pr create \
               --repo Kien-devops/aws-cloud-native-sre-platform \
               --base main \
@@ -261,11 +263,11 @@ Trong repository `app3`, khai bÃ¡o job `promote-gitops` cháº¡y ná»‘i ti
 
 ---
 
-### BÆ°á»›c 3: PhÃ¢n táº§ng MÃ´i trÆ°á»ng & ChÃ­nh sÃ¡ch Báº£o vá»‡ Production (Multi-Env Overlays)
+### Bước 3: Phân tầng Môi trường & Chính sách Bảo vệ Production (Multi-Env Overlays)
 
-Khi má»Ÿ rá»™ng há»‡ thá»‘ng lÃªn nhiá»u mÃ´i trÆ°á»ng (`staging`, `prod`), Ã¡p dá»¥ng cÆ¡ cháº¿ Kustomize Overlays:
+Khi mở rộng hệ thống lên nhiều môi trường (`staging`, `prod`), áp dụng cơ chế Kustomize Overlays:
 
-#### 1. Cáº¥u hÃ¬nh Staging Overlay (`gitops/applications/reliability-shop/envs/staging/kustomization.yaml`):
+#### 1. Cấu hình Staging Overlay (`gitops/applications/reliability-shop/envs/staging/kustomization.yaml`):
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -279,7 +281,7 @@ commonLabels:
   environment: staging
 ```
 
-#### 2. Cáº¥u hÃ¬nh Production Overlay (`gitops/applications/reliability-shop/envs/prod/kustomization.yaml`):
+#### 2. Cấu hình Production Overlay (`gitops/applications/reliability-shop/envs/prod/kustomization.yaml`):
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -293,7 +295,7 @@ commonLabels:
   environment: prod
 ```
 
-#### 3. Argo CD Application Production vá»›i Manual Sync Gate (`application-prod.yaml`):
+#### 3. Argo CD Application Production với Manual Sync Gate (`application-prod.yaml`):
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -309,7 +311,7 @@ spec:
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: reliability-shop-prod
-  # CHÃNH SÃCH Báº¢O Vá»† PRODUCTION: KHÃ”NG Báº¬T AUTOMATED SYNC (MANUAL GATE)
+  # CHÍNH SÁCH BẢO VỆ PRODUCTION: KHÔNG BẬT AUTOMATED SYNC (MANUAL GATE)
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
@@ -317,69 +319,69 @@ spec:
 
 ---
 
-### BÆ°á»›c 4: Tráº­t tá»± Triá»ƒn khai An toÃ n 4 BÆ°á»›c (Pre-Approved Deployment Ordering)
+### Bước 4: Trật tự Triển khai An toàn 4 Bước (Pre-Approved Deployment Ordering)
 
-Khi phÃ¡t hÃ nh má»™t tÃ­nh nÄƒng hoáº·c phiÃªn báº£n nÃ¢ng cáº¥p cÃ³ tÃ¡c Ä‘á»™ng tá»›i dá»¯ liá»‡u vÃ  luá»“ng hÃ ng Ä‘á»£i, tuyá»‡t Ä‘á»‘i khÃ´ng deploy Ä‘á»“ng loáº¡t toÃ n bá»™ há»‡ thá»‘ng. Báº¯t buá»™c tuÃ¢n thá»§ thá»© tá»± **4 bÆ°á»›c phÃ¡t hÃ nh an toÃ n**:
+Khi phát hành một tính năng hoặc phiên bản nâng cấp có tác động tới dữ liệu và luồng hàng đợi, tuyệt đối không deploy đồng loạt toàn bộ hệ thống. Bắt buộc tuân thủ thứ tự **4 bước phát hành an toàn**:
 
-1. **BÆ°á»›c 1: Additive DB Migration trÆ°á»›c (KhÃ´ng bao giá» xÃ³a cá»™t cÅ©)**
-   - Cháº¡y cÃ¡c cÃ¢u lá»‡nh SQL bá»• sung báº£ng má»›i (`order_outbox`, `processed_events`) hoáº·c thÃªm cÃ¡c cá»™t má»›i dáº¡ng nullable/default.
-   - Tuyá»‡t Ä‘á»‘i khÃ´ng drop table, rename table hay drop column.
-2. **BÆ°á»›c 2: Deploy Worker tÆ°Æ¡ng thÃ­ch ngÆ°á»£c (`payment-worker`)**
-   - PhiÃªn báº£n worker má»›i pháº£i cÃ³ kháº£ nÄƒng Ä‘á»c vÃ  xá»­ lÃ½ cáº£ Ä‘á»‹nh dáº¡ng event cÅ© láº«n Ä‘á»‹nh dáº¡ng event má»›i (Backward Compatibility).
-   - Äáº£m báº£o worker Ã¡p dá»¥ng cÆ¡ cháº¿ idempotent consumer qua báº£ng `processed_events`.
-3. **BÆ°á»›c 3: Deploy Producer / Outbox (`order-service`)**
-   - Sau khi worker Ä‘Ã£ sáºµn sÃ ng tiÃªu thá»¥ event má»›i, má»›i tiáº¿n hÃ nh deploy `order-service` Ä‘á»ƒ báº¯t Ä‘áº§u emit format event má»›i hoáº·c ghi nháº­n vÃ o báº£ng outbox.
-4. **BÆ°á»›c 4: Deploy Giao diá»‡n UI (`frontend`) cuá»‘i cÃ¹ng**
-   - Deploy `frontend` cáº­p nháº­t giao diá»‡n ngÆ°á»i dÃ¹ng hiá»ƒn thá»‹ Ä‘Ãºng cÃ¡c tráº¡ng thÃ¡i má»›i tá»« API tháº­t.
+1. **Bước 1: Additive DB Migration trước (Không bao giờ xóa cột cũ)**
+   - Chạy các câu lệnh SQL bổ sung bảng mới (`order_outbox`, `processed_events`) hoặc thêm các cột mới dạng nullable/default.
+   - Tuyệt đối không drop table, rename table hay drop column.
+2. **Bước 2: Deploy Worker tương thích ngược (`payment-worker`)**
+   - Phiên bản worker mới phải có khả năng đọc và xử lý cả định dạng event cũ lẫn định dạng event mới (Backward Compatibility).
+   - Đảm bảo worker áp dụng cơ chế idempotent consumer qua bảng `processed_events`.
+3. **Bước 3: Deploy Producer / Outbox (`order-service`)**
+   - Sau khi worker đã sẵn sàng tiêu thụ event mới, mới tiến hành deploy `order-service` để bắt đầu emit format event mới hoặc ghi nhận vào bảng outbox.
+4. **Bước 4: Deploy Giao diện UI (`frontend`) cuối cùng**
+   - Deploy `frontend` cập nhật giao diện người dùng hiển thị đúng các trạng thái mới từ API thật.
 
-### Chiáº¿n lÆ°á»£c HoÃ n nguyÃªn An toÃ n (Safe Rollback Protocol):
-- Khi phÃ¡t hiá»‡n sá»± cá»‘ sau khi rollout, ká»¹ sÆ° SRE thá»±c hiá»‡n **Rollback qua Git revert commit** Ä‘á»ƒ Ä‘Æ°a cáº¥u hÃ¬nh image digest trá»Ÿ láº¡i phiÃªn báº£n á»•n Ä‘á»‹nh trÆ°á»›c Ä‘Ã³:
+### Chiến lược Hoàn nguyên An toàn (Safe Rollback Protocol):
+- Khi phát hiện sự cố sau khi rollout, kỹ sư SRE thực hiện **Rollback qua Git revert commit** để đưa cấu hình image digest trở lại phiên bản ổn định trước đó:
   ```bash
   git revert <commit-sha-loi>
   git push origin main
-  # Argo CD sáº½ tá»± Ä‘á»™ng hÃ²a giáº£i pods vá» image digest cÅ©
+  # Argo CD sẽ tự động hòa giải pods về image digest cũ
   ```
-- **Quy táº¯c Báº¥t biáº¿n vá» CÆ¡ sá»Ÿ dá»¯ liá»‡u (Database Invariant):** Tuyá»‡t Ä‘á»‘i **KHÃ”NG rollback hay xÃ³a cÃ¡c báº£ng/cá»™t má»›i** trong cÆ¡ sá»Ÿ dá»¯ liá»‡u khi revert code. Do Ä‘Ã£ Ã¡p dá»¥ng nguyÃªn táº¯c Additive Migration, code cÅ© váº«n hoÃ n toÃ n tÆ°Æ¡ng thÃ­ch vá»›i database hiá»‡n táº¡i vÃ  khÃ´ng lÃ m giÃ¡n Ä‘oáº¡n há»‡ thá»‘ng.
+- **Quy tắc Bất biến về Cơ sở dữ liệu (Database Invariant):** Tuyệt đối **KHÔNG rollback hay xóa các bảng/cột mới** trong cơ sở dữ liệu khi revert code. Do đã áp dụng nguyên tắc Additive Migration, code cũ vẫn hoàn toàn tương thích với database hiện tại và không làm gián đoạn hệ thống.
 
 ---
 
-## 4. XÃ¡c minh Thá»±c táº¿ (Verification)
+## 4. Xác minh Thực tế (Verification)
 
-### 1. Kiá»ƒm tra Lá»‹ch sá»­ Commit vÃ  PR trÃªn Git:
+### 1. Kiểm tra Lịch sử Commit và PR trên Git:
 ```powershell
 git log -n 3 --oneline
 ```
-* XÃ¡c nháº­n cÃ³ commit merge dáº¡ng: `Merge pull request #1 from ...` cáº­p nháº­t file `kustomization.yaml`.
+* Xác nhận có commit merge dạng: `Merge pull request #1 from ...` cập nhật file `kustomization.yaml`.
 
-### 2. Kiá»ƒm tra Äá»“ng bá»™ Argo CD:
+### 2. Kiểm tra Đồng bộ Argo CD:
 ```powershell
 kubectl get applications.argoproj.io -n argocd
 ```
-* `reliability-shop` Ä‘áº¡t tráº¡ng thÃ¡i `Synced` vÃ  `Healthy`.
+* `reliability-shop` đạt trạng thái `Synced` và `Healthy`.
 
-### 3. Kiá»ƒm tra Pods Ä‘ang cháº¡y Ä‘Ãºng Image Digest má»›i:
+### 3. Kiểm tra Pods đang chạy đúng Image Digest mới:
 ```powershell
 kubectl get pods -n reliability-shop -o custom-columns='NAME:.metadata.name,IMAGE:.spec.containers[*].image'
 ```
-* XÃ¡c nháº­n toÃ n bá»™ pods Ä‘ang cháº¡y khá»›p 100% vá»›i Image Digest ECR Ä‘Æ°á»£c chá»‰ Ä‘á»‹nh.
+* Xác nhận toàn bộ pods đang chạy khớp 100% với Image Digest ECR được chỉ định.
 
-### 4. Kiá»ƒm tra Health Endpoint cá»§a á»¨ng dá»¥ng:
+### 4. Kiểm tra Health Endpoint của Ứng dụng:
 ```powershell
 curl -k https://shop.dev.devopsss.site/health
 ```
-* Tráº£ vá» HTTP `200 OK` (`{"status":"UP","service":"frontend",...}`).
+* Trả về HTTP `200 OK` (`{"status":"UP","service":"frontend",...}`).
 
 ---
 
-## 5. Äiá»u kiá»‡n hoÃ n thÃ nh Gate (SRE Gate Check)
+## 5. Điều kiện hoàn thành Gate (SRE Gate Check)
 
-- [x] KhÃ´ng sá»­ dá»¥ng `kubectl` trong CI; toÃ n bá»™ quÃ¡ trÃ¬nh phÃ¡t hÃ nh á»§y quyá»n cho GitOps vÃ  Argo CD.
-- [x] ToÃ n bá»™ Image Ä‘Æ°á»£c quáº£n lÃ½ báº±ng **Immutable ECR Digests** (`sha256:...`), ngÄƒn cháº·n hÃ nh vi ghi Ä‘Ã¨ image tag.
-- [x] Pipeline CI tá»± Ä‘á»™ng má»Ÿ Pull Request kÃ¨m Báº£ng ÄÃ¡nh GiÃ¡ Cháº¥t LÆ°á»£ng (Quality Gate) Ä‘áº§y Ä‘á»§.
-- [x] QuÃ¡ trÃ¬nh cáº­p nháº­t á»©ng dá»¥ng diá»…n ra theo cÆ¡ cháº¿ Zero-Downtime Rolling Update vÃ  báº£o Ä‘áº£m tÃ­nh tÆ°Æ¡ng thÃ­ch ngÆ°á»£c.
+- [x] Không sử dụng `kubectl` trong CI; toàn bộ quá trình phát hành ủy quyền cho GitOps và Argo CD.
+- [x] Toàn bộ Image được quản lý bằng **Immutable ECR Digests** (`sha256:...`), ngăn chặn hành vi ghi đè image tag.
+- [x] Pipeline CI tự động mở Pull Request kèm Bảng Đánh Giá Chất Lượng (Quality Gate) đầy đủ.
+- [x] Quá trình cập nhật ứng dụng diễn ra theo cơ chế Zero-Downtime Rolling Update và bảo đảm tính tương thích ngược.
 
 ---
 
-## 6. Dá»n dáº¹p tÃ i nguyÃªn (Cleanup)
+## 6. Dọn dẹp tài nguyên (Cleanup)
 
-- Duy trÃ¬ cáº¥u hÃ¬nh phÃ¢n táº§ng mÃ´i trÆ°á»ng Ä‘á»ƒ phá»¥c vá»¥ bÃ i thá»±c hÃ nh co giÃ£n tá»± Ä‘á»™ng **08.03 (HPA & KEDA)** vÃ  phÃ¡t hÃ nh phÃ¢n tÃ­ch lá»—i **08.05 (Argo Rollouts Canary)**.
+- Duy trì cấu hình phân tầng môi trường để phục vụ bài thực hành co giãn tự động **08.03 (HPA & KEDA)** và phát hành phân tích lỗi **08.05 (Argo Rollouts Canary)**.
