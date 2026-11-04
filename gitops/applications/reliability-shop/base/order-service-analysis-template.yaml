@@ -5,7 +5,7 @@ metadata:
   namespace: reliability-shop
 spec:
   metrics:
-    # TIÊU CHÍ 1: TỶ LỆ LỖI (ERROR RATE) <= 0.5%
+    # TIÊU CHÍ 1: TỶ LỆ LỖI (ERROR RATE) <= 0.5% (0.005)
     - name: error-rate
       interval: 30s
       successCondition: result[0] <= 0.005
@@ -15,20 +15,20 @@ spec:
           address: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090
           query: |
             (
-              sum(rate(http_requests_total{service="order-service", status=~"5.."}[1m])) or vector(0)
+              sum(rate(otel_http_server_duration_milliseconds_count{exported_job="order-service", http_status_code=~"5.."}[1m])) or vector(0)
             )
             /
             (
-              sum(rate(http_requests_total{service="order-service"}[1m])) or vector(1)
+              sum(rate(otel_http_server_duration_milliseconds_count{exported_job="order-service"}[1m])) or vector(1)
             )
 
     # TIÊU CHÍ 2: ĐỘ TRỄ P95 (LATENCY) <= 300MS (0.3 giây)
     - name: p95-latency
       interval: 30s
-      successCondition: result[0] <= 0.300
+      successCondition: result[0] <= 300
       failureLimit: 2
       provider:
         prometheus:
           address: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090
           query: |
-            histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service="order-service"}[1m])) by (le)) or vector(0.05)
+            histogram_quantile(0.95, sum(rate(otel_http_server_duration_milliseconds_bucket{exported_job="order-service"}[1m])) by (le)) or vector(50)
