@@ -1,0 +1,15 @@
+flowchart LR
+  REQ[HTTP request] --> APP[Ứng dụng đã instrument]
+  APP --> SDK[OpenTelemetry SDK]
+  SDK --> OTLP[OTLP Collector]
+  OTLP --> TRACE[Tempo traces]
+  OTLP --> METRIC[Metrics endpoint]
+  METRIC --> PROM[Prometheus scrape]
+  APP --> LOG[Structured logs]
+  LOG --> AGENT[Log agent / collector]
+  AGENT --> LOKI[Loki]
+  TRACE --> GRAF[Grafana]
+  PROM --> GRAF
+  LOKI --> GRAF
+  PROM --> RULE[SLO và burn-rate rules]
+  RULE --> AM[Alertmanager]

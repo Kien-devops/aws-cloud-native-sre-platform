@@ -1,0 +1,13 @@
+flowchart TD
+  A[Triệu chứng ảnh hưởng người dùng] --> B[Phát hiện qua SLO/alert]
+  B --> C[Xác nhận và phân loại mức độ]
+  C --> D[Điều tra metrics, logs, traces]
+  D --> E{Có biện pháp giảm thiểu?}
+  E -->|Có| F[Rollback, giảm tải hoặc cô lập]
+  E -->|Không| G[Escalate và chạy runbook]
+  G --> F
+  F --> H{SLI đã phục hồi?}
+  H -->|Chưa| D
+  H -->|Rồi| I[Xác minh từ góc nhìn client]
+  I --> J[Timeline và postmortem không quy lỗi]
+  J --> K[Hành động phòng ngừa và kiểm thử lại]

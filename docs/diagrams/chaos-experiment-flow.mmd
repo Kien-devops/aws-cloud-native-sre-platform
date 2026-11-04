@@ -1,0 +1,13 @@
+flowchart TD
+  H[Đặt giả thuyết và SLI] --> BASE[Đo baseline steady state]
+  BASE --> SAFE[Xác nhận phạm vi và điều kiện dừng]
+  SAFE --> INJECT[Inject lỗi có kiểm soát]
+  INJECT --> OBS[Quan sát k6, metrics, logs, traces]
+  OBS --> STOP{Vượt giới hạn an toàn?}
+  STOP -->|Có| ABORT[Hủy fault và khôi phục]
+  STOP -->|Không| FIN[Hoàn tất thử nghiệm]
+  ABORT --> VERIFY[Xác minh phục hồi]
+  FIN --> VERIFY
+  VERIFY --> REPORT[Ghi kết quả và giới hạn]
+  REPORT --> IMPROVE[Sửa khoảng trống reliability]
+  IMPROVE --> RETEST[Lặp lại phép thử tương đương]
