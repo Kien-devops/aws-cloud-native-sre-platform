@@ -5,3 +5,4 @@ namespace: argo-rollouts
 
 resources:
   - install.yaml
+
