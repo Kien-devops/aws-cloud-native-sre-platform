@@ -1,10 +1,17 @@
 # Observability & Monitoring Platform GitOps
 
+**Metrics, logs, traces và dashboards trong một điểm nạp GitOps.**
+
+[GitOps](../../README.md) / [Platform](../README.md) / Monitoring · [Cấu hình tham khảo](../../../observability/README.md)
+
+> [!IMPORTANT]
+> Tiền tố `00`–`07` phục vụ điều hướng, không bảo đảm thứ tự readiness. Loki/Tempo hiện dùng `emptyDir`; dữ liệu mất khi Pod được thay thế. Prometheus Operator/CRD và ESO là prerequisite bên ngoài module.
+
 ## 1. Tổng quan & Triết lý Thiết kế
 
 Thư mục này quản lý toàn bộ hạ tầng **Giám sát & Khả năng quan sát (Observability)** của nền tảng EKS theo chuẩn GitOps.
 
-Hệ thống được thiết kế theo quy tắc **Ordered Prefix (Tiền tố số thứ tự `00` - `07`)** phản ánh chính xác chu trình phụ thuộc khởi tạo tự nhiên của Kubernetes:
+Tên file được nhóm theo trách nhiệm. Sơ đồ dưới thể hiện dependency logic để kiểm tra khi bootstrap:
 
 ```
 [00-Namespace]
@@ -46,7 +53,7 @@ Hệ thống được thiết kế theo quy tắc **Ordered Prefix (Tiền tố 
 
 1. **Dễ đọc & Dễ tìm:** Nhìn vào danh sách file là biết ngay file nào làm việc gì, không bị lẫn lộn giữa cấu hình Grafana lõi với Dashboards JSON.
 2. **Review Git Diff rõ ràng:** Khi bạn thêm sửa một bảng điều khiển (Dashboard) mới, Git chỉ thay đổi file `04-grafana-dashboards.yaml`, hoàn toàn không ảnh hưởng tới Deployment (`05-grafana-core.yaml`) hay Ingress (`06-grafana-ingress.yaml`).
-3. **Thứ tự thực thi tường minh:** File `kustomization.yaml` nạp các tài nguyên tuần tự từ `00` đến `07`, giúp việc debug khi khởi tạo môi trường mới nhanh chóng và không bị lỗi phụ thuộc tài nguyên.
+3. **Dependency dễ nhận diện:** Khi bootstrap, kiểm tra CRD, secret và backend readiness riêng; Kustomize không chờ từng file sẵn sàng trước khi xử lý file kế tiếp.
 
 ---
 

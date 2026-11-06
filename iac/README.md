@@ -1,5 +1,21 @@
 # Infrastructure as Code (IaC) — AWS Cloud Foundation
 
+**AWS foundation dưới dạng Terraform, tách khỏi Kubernetes desired state.**
+
+[Trang chủ](../README.md) / Infrastructure · [GitOps](../gitops/README.md) · [Labs](../labs/README.md)
+
+| Phạm vi có mã nguồn | Nguồn |
+| --- | --- |
+| VPC, subnet, route, NAT, S3 endpoint | [01-vpc.tf](terraform/envs/dev/01-vpc.tf) |
+| KMS | [02-kms.tf](terraform/envs/dev/02-kms.tf) |
+| EKS, managed node group | [03-eks.tf](terraform/envs/dev/03-eks.tf) |
+| RDS PostgreSQL | [04-database.tf](terraform/envs/dev/04-database.tf) |
+| SQS và DLQ | [05-messaging.tf](terraform/envs/dev/05-messaging.tf) |
+| Backend mẫu | [backend.tf.example](terraform/envs/dev/backend.tf.example) |
+
+> [!NOTE]
+> Mã nguồn hiện nằm tại `terraform/envs/dev/`; IAM roles được tham chiếu, chưa được tạo ở đây. Redis, ECR và Secrets Manager chưa có resource Terraform tương ứng. Số liệu import/drift bên dưới là hồ sơ đã lưu, cần kiểm chứng lại với state và AWS hiện tại.
+
 Thư mục này chứa toàn bộ mã nguồn **Terraform** quản lý hạ tầng đám mây cấp doanh nghiệp cho **AWS Cloud-Native SRE Platform** tại Region `ap-southeast-1` (Singapore). Toàn bộ hạ tầng được thiết kế theo chuẩn bảo mật tối cao (Zero Trust, Least Privilege, KMS CMK Encryption) và tối ưu hóa chi phí vận hành (FinOps Governance).
 
 ---

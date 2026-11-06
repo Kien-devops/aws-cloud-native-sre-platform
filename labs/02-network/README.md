@@ -1,5 +1,9 @@
 # Module 02: Mạng VPC, Định tuyến & Phân đoạn bảo mật
 
+**Tách đường vào ứng dụng, đường ra internet và lớp dữ liệu private.**
+
+[Labs](../README.md) / Module 02 · [Trước: IAM](../01-iam-security/README.md) · [Tiếp: Foundation](../03-foundation-services/README.md)
+
 ## 1. Tổng quan Module
 
 Module 02 xây dựng nền tảng mạng cấp doanh nghiệp (3-Tier Multi-AZ VPC Architecture) tại Region `ap-southeast-1`:
@@ -15,11 +19,11 @@ Module 02 xây dựng nền tảng mạng cấp doanh nghiệp (3-Tier Multi-AZ 
 
 | Bài Lab | Tiêu đề | Trọng tâm kỹ thuật | Console / CLI Path |
 | :--- | :--- | :--- | :--- |
-| [**02.01**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/02-network/01-vpc-subnets.md) | **3-Tier VPC & Subnets** | Dựng VPC `10.0.0.0/16`, 6 subnets trên 2 AZs (1a/1b), gắn thẻ EKS & Karpenter discovery | VPC > Your VPCs / Subnets |
-| [**02.02**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/02-network/02-route-table-igw-nat.md) | **Route Tables, IGW & NAT** | Tạo IGW, cấp phát EIP cho NAT Gateway 1a, thiết lập bảng định tuyến cô lập mạng dữ liệu | VPC > Route tables / NAT |
-| [**02.03**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/02-network/03-vpc-endpoints.md) | **VPC Endpoints (S3, ECR, Secrets)** | S3 Gateway Endpoint bypass NAT; Interface Endpoints cho ECR API, DKR và Secrets Manager | VPC > Endpoints |
-| [**02.04**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/02-network/04-security-groups.md) | **Ma trận Security Groups** | Khởi tạo `alb-sg`, `node-sg`, `db-sg`; chặn mọi truy cập trực tiếp từ internet vào database | EC2 > Security Groups |
-| [**02.05**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/02-network/05-vpc-flow-logs.md) | **VPC Flow Logs & CloudWatch** | Bật Flow Logs ghi lại toàn bộ traffic, cấu hình CloudWatch Logs Insights query phân tích REJECT | VPC > Flow logs |
+| [02.01](01-vpc-subnets.md) | VPC & Subnets | 6 subnet, 2 AZ, discovery tags | VPC > Subnets |
+| [02.02](02-route-table-igw-nat.md) | Routes, IGW & NAT | Public egress và private routing | VPC > Route tables |
+| [02.03](03-vpc-endpoints.md) | VPC Endpoints | S3 Gateway, ECR và Secrets Manager | VPC > Endpoints |
+| [02.04](04-security-groups.md) | Security Groups | Ranh giới ALB, node và database | EC2 > Security Groups |
+| [02.05](05-vpc-flow-logs.md) | Flow Logs | Thu thập traffic và phân tích REJECT | VPC > Flow logs |
 
 ---
 

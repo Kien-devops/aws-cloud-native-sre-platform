@@ -2,17 +2,16 @@
 
 <div align="center">
 
-![AWS](https://img.shields.io/badge/AWS-Amazon%20EKS%20v1.31-FF9900?logo=amazon-aws&logoColor=white)
-![Terraform](https://img.shields.io/badge/IaC-Terraform%201.8+-7B42BC?logo=terraform&logoColor=white)
-![GitOps](https://img.shields.io/badge/GitOps-Argo%20CD%20v2.11+-EF6033?logo=argo&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS-Amazon%20EKS-FF9900?logo=amazonwebservices&logoColor=white)
+![Terraform](https://img.shields.io/badge/IaC-Terraform-7B42BC?logo=terraform&logoColor=white)
+![GitOps](https://img.shields.io/badge/GitOps-Argo%20CD-EF6033?logo=argo&logoColor=white)
 ![Rollouts](https://img.shields.io/badge/Canary-Argo%20Rollouts-EF6033?logo=argo&logoColor=white)
 ![Observability](https://img.shields.io/badge/Telemetry-OpenTelemetry%20%7C%20Prometheus%20%7C%20Grafana-F46800?logo=grafana&logoColor=white)
 ![Autoscaling](https://img.shields.io/badge/Autoscaling-Karpenter%20%7C%20KEDA-326CE5?logo=kubernetes&logoColor=white)
 ![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions%20OIDC-2088FF?logo=github-actions&logoColor=white)
 ![Security](https://img.shields.io/badge/Security-Trivy%20%7C%20KMS%20CMK%20%7C%20ESO-success)
-![FinOps](https://img.shields.io/badge/FinOps-$0.04%2Fday%20Idle-00C7B7?logo=target&logoColor=white)
 
-**Hạ tầng Nền tảng Cloud-Native SRE & GitOps Production-Ready trên Amazon EKS Đa Availability Zone (`ap-southeast-1`)**
+**Từ mã nguồn đến vận hành: hạ tầng AWS, GitOps delivery và thực hành SRE trên Amazon EKS.**
 
 [Kiến trúc Tổng thể](#1-kiến-trúc-tổng-thể-nền-tảng) • [Pipeline CI/CD Từ App3 Đến GitOps](#2-pipeline-cicd-end-to-end-từ-mã-nguồn-app3-đến-gitops) • [Số liệu Vận hành Thực tế](#3-các-chỉ-số-kỹ-thuật-đo-đạc-thực-tế-hard-metrics) • [Minh chứng Hạ tầng](#4-minh-chứng-vận-hành-thực-tế-live-evidence) • [Chiến lược SRE & Tự Phục Hồi](#5-chiến-lược-sre--tự-phục-hồi-resilience--chaos) • [Cấu trúc Repository](#6-cấu-trúc-repository--navigation) • [Nguyên tắc Vận hành](#7-nguyên-tắc-thiết-kế--khả-năng-vận-hành)
 
@@ -20,12 +19,25 @@
 
 ---
 
+| Khám phá | Nội dung |
+| --- | --- |
+| [Architecture & operations](docs/README.md) | Kiến trúc, deployment, bảo mật và vận hành |
+| [Infrastructure](iac/README.md) | Terraform foundation và phạm vi quản lý AWS |
+| [GitOps delivery](gitops/README.md) | Argo CD, overlays, canary và platform components |
+| [Observability](observability/README.md) | Metrics, logs, traces và dashboards |
+| [Performance](performance/README.md) · [SRE](sre/README.md) | Load testing, SLO, runbooks và reliability reports |
+| [Hands-on labs](labs/README.md) | Lộ trình 11 module từ chuẩn bị đến bàn giao |
+| [Application source](https://github.com/Kien-devops/app3) | ReliabilityShop services, Docker và CI |
+
+> [!NOTE]
+> Ảnh chụp và số liệu bên dưới là hồ sơ được lưu trong repository, không phải trạng thái live hiện tại. Cấu hình triển khai được xác định bởi manifest và Terraform tại revision đang sử dụng; xem README từng thư mục để biết phạm vi và giới hạn.
+
 ## Tổng quan Hệ thống (System Overview)
 
 Dự án này xây dựng một nền tảng **Cloud-Native SRE & GitOps** cấp doanh nghiệp, thiết kế để vận hành bộ ứng dụng thương mại điện tử microservices phân tán (**ReliabilityShop**) với yêu cầu nghiêm ngặt về độ ổn định, hiệu năng và khả năng chịu lỗi.
 
 Hệ thống giải quyết trọn vẹn chu trình kỹ thuật của một Platform/SRE Engineer trong môi trường thực tế:
-- **Tách bạch trách nhiệm (Separation of Concerns):** Mã nguồn ứng dụng được phát triển tại Monorepo [`app3`](../../app3/app3) với pipeline CI tự động kiểm thử, quét bảo mật Trivy và đóng gói container image immutable qua AWS OIDC. Toàn bộ hạ tầng và cấu hình triển khai được quản lý tập trung tại kho lưu trữ GitOps này.
+- **Tách bạch trách nhiệm:** Mã ứng dụng nằm tại [app3](https://github.com/Kien-devops/app3), với CI kiểm thử, quét Trivy và đóng gói image qua AWS OIDC. Repository này giữ Terraform foundation và Kubernetes desired state.
 - **Hạ tầng Cloud Foundation (IaC):** Thiết kế mạng VPC 3-Tier Multi-AZ, mã hóa toàn diện bằng AWS KMS CMK, điều phối bí mật qua External Secrets Operator (ESO), và cụm Amazon EKS v1.31 tối ưu chi phí với Karpenter.
 - **Phân phối Liên tục An toàn (GitOps & Canary Rollouts):** Ứng dụng triển khai qua Argo CD theo mô hình App-of-Apps; cập nhật phiên bản qua Argo Rollouts với phân tích tự động lỗi thời gian thực từ Prometheus, tự động rollback khi có dị thường.
 - **Kiểm chứng Độ tin cậy Dựa trên Dữ liệu (Evidence-Based SRE):** Hệ thống được kiểm thử tải liên tục bằng k6 in-cluster (2,712 giao dịch) và diễn tập sự cố hạ tầng thực tế (terminate EC2 worker node dưới tải 45 RPS) để chứng minh khả năng tự phục hồi mà không làm gián đoạn người dùng.

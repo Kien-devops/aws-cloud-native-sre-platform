@@ -1,6 +1,45 @@
-# GitOps Continuous Delivery & Progressive Rollouts
+# GitOps Delivery
 
-Thư mục này chứa toàn bộ cấu hình khai báo (**Declarative GitOps Desired State**) của hệ sinh thái **AWS Cloud-Native SRE Platform**. Hệ thống sử dụng **Argo CD** theo mô hình **App-of-Apps Pattern** kết hợp với **Argo Rollouts** để triển khai an toàn theo chiến lược Progressive Canary Delivery.
+**Desired state cho platform và ReliabilityShop trên Amazon EKS.**
+
+[Trang chủ](../README.md) / GitOps · [Bootstrap](bootstrap/README.md) · [Platform](platform/README.md) · [Environments](applications/reliability-shop/envs/README.md)
+
+## Bản đồ cấu hình
+
+| Thư mục | Trách nhiệm |
+| --- | --- |
+| [bootstrap/](bootstrap/README.md) | Bốn Application ngang hàng: platform, dev, staging, prod |
+| [projects/](projects/) | AppProject và ranh giới tài nguyên/namespace |
+| [platform/](platform/README.md) | Ingress, secret store, monitoring, KEDA, Karpenter, Rollouts |
+| [base/](applications/reliability-shop/base/) | Workloads, Services, HPA, KEDA và order canary |
+| [envs/](applications/reliability-shop/envs/README.md) | Namespace, image digest và patch từng môi trường |
+
+## Luồng phát hành
+
+```mermaid
+flowchart LR
+    CI[App3: test / scan / build] --> ECR[ECR digest]
+    ECR --> PR[GitOps PR]
+    PR --> Argo[Argo CD sync]
+    Argo --> Rollout[Order canary]
+    Rollout --> Analysis[Prometheus analysis]
+    Analysis --> Decision[Promote / abort]
+```
+
+| Application | Revision | Sync |
+| --- | --- | --- |
+| `platform-infrastructure` | `HEAD` | Auto, prune, self-heal |
+| `reliability-shop` | `dev` | Auto, prune, self-heal |
+| `reliability-shop-staging` | `staging` | Auto, prune, self-heal |
+| `reliability-shop-prod` | `main` | Manual |
+
+Nguồn cấu hình: [root-application.yaml](bootstrap/root-application.yaml). Rollback dùng commit/digest đã biết tốt; kiểm tra thêm Rollout, API và dữ liệu sau sync.
+
+> [!NOTE]
+> Hồ sơ bên dưới được giữ để tham khảo. Một số sơ đồ, đường dẫn và số liệu thuộc revision trước; manifest hiện tại quyết định hành vi triển khai. Canary chưa có `trafficRouting`; overlay staging/prod vẫn kế thừa DB, Redis và secret dev.
+
+<details>
+<summary>Hồ sơ kiến trúc, ảnh chụp và diễn tập đã lưu</summary>
 
 ---
 
@@ -129,4 +168,6 @@ kubectl scale rollout order-service -n reliability-shop --replicas=10
 # Ứng dụng lập tức chuyển OutOfSync và tự động hoàn nguyên về 2 replicas trong vòng 10 giây!
 kubectl get rollout order-service -n reliability-shop -w
 ```
+
+</details>
 

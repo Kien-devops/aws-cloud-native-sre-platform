@@ -1,5 +1,12 @@
 # Chaos Mesh
 
+**Module dự kiến cho fault injection có kiểm soát.**
+
+[GitOps](../../README.md) / [Platform](../README.md) / Chaos Mesh
+
+> [!NOTE]
+> Thư mục hiện chỉ có tài liệu, chưa được platform Kustomization nạp. Xem [Chaos Engineering](../../../chaos/README.md) để đọc phạm vi diễn tập.
+
 ## Status
 
 `PLANNED` — chưa cài controller/CRD và chưa có experiment.

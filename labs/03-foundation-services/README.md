@@ -1,5 +1,9 @@
 # Module 03 — Khởi tạo Dịch vụ Nền tảng (Foundation Services)
 
+**Artifact, messaging và dữ liệu cho hành trình order.**
+
+[Labs](../README.md) / Module 03 · [Trước: Network](../02-network/README.md) · [Tiếp: EKS](../04-eks-platform/README.md)
+
 > **Mục tiêu Module:** Thiết lập toàn bộ các dịch vụ phụ trợ cốt lõi trên AWS Console mà nền tảng microservices ReliabilityShop tiêu thụ: Kho chứa container images (Amazon ECR), hàng đợi giao tiếp bất đồng bộ và cách ly thông điệp độc hại (Amazon SQS & Dead-Letter Queue), cơ sở dữ liệu quan hệ (Amazon RDS PostgreSQL với Outbox & Idempotency schema), bộ nhớ đệm phân tán (Amazon ElastiCache Redis) và diễn tập quy trình sao lưu phục hồi thảm họa (Disaster Recovery).
 
 ---

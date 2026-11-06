@@ -1,12 +1,22 @@
 # KEDA
 
+**Co giãn payment-worker theo backlog Amazon SQS.**
+
+[GitOps](../../README.md) / [Platform](../README.md) / KEDA
+
+| Tệp | Vai trò |
+| --- | --- |
+| [keda-operator.yaml](keda-operator.yaml) | CRD, RBAC và controller KEDA `2.14.0` |
+| [kustomization.yaml](kustomization.yaml) | Điểm nạp của platform |
+| [Application scaler](../../applications/reliability-shop/base/keda-scaledobject.yaml) | TriggerAuthentication và ScaledObject |
+
 ## Status
 
-`PLANNED` — chưa cài KEDA, CRD hoặc `ScaledObject`; chưa có autoscaling runtime.
+Controller manifests được platform nạp; ScaledObject nằm trong application base. Trạng thái co giãn cần được xác nhận trên cluster.
 
 ## Purpose
 
-Dự kiến scale worker theo event, ví dụ độ sâu SQS, với min/max replica và cooldown được review theo workload.
+Scale payment-worker theo queue depth, hiện giữ từ 2 đến 10 replica. Cấu hình này không scale về 0.
 
 ## Repository ownership
 
@@ -18,7 +28,7 @@ KEDA controller/CRD, queue name/URL, IAM Pod Identity/IRSA, network path tới S
 
 ## AWS/EKS integration
 
-KEDA có thể đọc SQS/CloudWatch metrics bằng IAM role; repo hiện chưa khai báo scaler hay AWS resource.
+Scaler đọc SQS bằng controller identity. Queue URL được patch theo môi trường; Pod Identity association và IAM phải được cấu hình bên AWS.
 
 ## Security/IAM
 
@@ -26,15 +36,15 @@ Chỉ cấp quyền đọc metric/queue cần thiết; không nhúng AWS keys v�
 
 ## Cost/operations
 
-Scale-to-zero giảm compute nhưng có cold-start và polling lag. Cần alert backlog age, poison messages và max replica guardrail.
+Giữ tối thiểu 2 worker giảm cold-start nhưng duy trì chi phí nền. Cần alert backlog age, poison messages và max replica guardrail.
 
 ## Enablement
 
-Thêm controller, authentication và `ScaledObject` sau design review. `NOT_DEPLOYED`.
+Xác nhận CRD, controller identity và quyền đọc queue trước khi sync ScaledObject. Theo dõi backlog age cùng số worker để tránh đẩy quá tải xuống database.
 
 ## Validation
 
-Chưa có scaler để kiểm tra. `Measured Result: NOT DEPLOYED`.
+Render cục bộ: `kubectl kustomize gitops/platform/keda`. Runtime: kiểm tra ScaledObject conditions, HPA do KEDA tạo và queue age.
 
 ## Rollback
 

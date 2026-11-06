@@ -1,5 +1,9 @@
 # Module 10: Handoff, State Reconciliation & Reverse Cleanup
 
+**Bàn giao ownership, kiểm tra restore và kết thúc vòng đời tài nguyên.**
+
+[Labs](../README.md) / Module 10 · [Trước: SRE Validation](../09-sre-validation/README.md) · [Về trang chủ](../../README.md)
+
 ## 1. Tổng quan Module
 
 Module 10 là chặng về đích của dự án **AWS Cloud-Native SRE Platform**. Sau khi toàn bộ nền tảng và ứng dụng thương mại điện tử mẫu `ReliabilityShop` đã trải qua các bài kiểm định tải (k6), khả năng tự phục hồi (Chaos GameDay), giám sát SLO (Error Budget Burn Rate) và đạt quyết định Go-Live ở Module 09, Module 10 sẽ thực hiện quy trình kỹ thuật chuyển giao:
@@ -45,12 +49,12 @@ Module 10 là chặng về đích của dự án **AWS Cloud-Native SRE Platform
 
 | Mã bài Lab | Tiêu đề | Trọng tâm kỹ thuật | Console / CLI Path |
 | :--- | :--- | :--- | :--- |
-| [**10.01**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/01-resource-inventory.md) | **Resource Inventory & Ownership** | Quét Tag Editor, tạo Resource Group, gắn tag chuẩn hóa, phát hiện tài nguyên mồ côi | `Resource Groups > Tag Editor` |
-| [**10.02**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/02-gitops-drift-reconciliation.md) | **GitOps Drift Reconciliation** | Tự động hòa giải trôi lệch cấu hình qua Argo CD selfHeal/prune, loại bỏ dynamic drift | Argo CD UI + Git |
-| [**10.03**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/03-gitops-ownership.md) | **GitOps Ownership & Boundaries** | Phân định ranh giới hạ tầng Console và ứng dụng GitOps, cấm chỉnh sửa kubectl trực tiếp | Argo CD UI + `kubectl` |
-| [**10.04**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/04-rebuild-restore.md) | **Rebuild & Restore Verification** | Diễn tập Cold Rebuild từ code Git và snapshot DB, bấm giờ đo đạc RTO và RPO thực tế | AWS Console + GitOps |
-| [**10.05**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/05-cleanup-order.md) | **Reverse Dependency Teardown** | Hủy tài nguyên theo thứ tự phụ thuộc ngược, chạy script săn lùng leak chi phí | AWS Console + Bash Hunter |
-| [**10.06**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/10-handoff-cleanup/06-cost-audit.md) | **Cost Audit & Production Handoff** | Kiểm toán AWS Billing Cost Explorer, xác nhận $0.00 idle spend, lập biên bản bàn giao | `Billing > Cost Explorer` |
+| [10.01](01-resource-inventory.md) | Resource Inventory | Tags, ownership và tài nguyên còn sót | Resource Groups |
+| [10.02](02-gitops-drift-reconciliation.md) | Drift Reconciliation | So sánh desired state và runtime | Argo CD / Git |
+| [10.03](03-gitops-ownership.md) | Ownership Boundaries | Phân định AWS và Kubernetes | GitOps / IaC |
+| [10.04](04-rebuild-restore.md) | Rebuild & Restore | RTO, RPO và tính toàn vẹn dữ liệu | AWS / GitOps |
+| [10.05](05-cleanup-order.md) | Cleanup Order | Dependency ngược và kiểm tra orphan | AWS Console |
+| [10.06](06-cost-audit.md) | Cost Audit & Handoff | Chi phí còn lại và biên bản bàn giao | Cost Explorer |
 
 ---
 

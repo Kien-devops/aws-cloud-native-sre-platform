@@ -1,5 +1,15 @@
 # Ingress
 
+**HTTPS entrypoint cho Argo CD trên shared Application Load Balancer.**
+
+[GitOps](../../README.md) / [Platform](../README.md) / Ingress
+
+| Nguồn | Trách nhiệm |
+| --- | --- |
+| [argocd-ingress.yaml](argocd-ingress.yaml) | Host, listener, certificate và target routing |
+| [kustomization.yaml](kustomization.yaml) | Nạp cấu hình vào platform |
+| AWS Load Balancer Controller | Reconcile ALB, listener và target group |
+
 ## Status
 
 `ACTIVE` — cấu hình Ingress cho Argo CD. Controller và AWS resources không được cài trong thư mục này.

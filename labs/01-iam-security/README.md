@@ -1,5 +1,9 @@
 # Module 01: IAM, Bảo mật & Audit Guardrails
 
+**Danh tính ngắn hạn, mã hóa có kiểm soát và audit có thể truy vết.**
+
+[Labs](../README.md) / Module 01 · [Trước: Chuẩn bị](../00-chuan-bi/README.md) · [Tiếp: Network](../02-network/README.md)
+
 ## 1. Tổng quan Module
 
 Module 01 triển khai hàng rào bảo mật nền tảng (Security Guardrails) theo nguyên tắc Least Privilege:
@@ -14,10 +18,10 @@ Module 01 triển khai hàng rào bảo mật nền tảng (Security Guardrails)
 
 | Bài Lab | Tiêu đề | Trọng tâm kỹ thuật | Console / CLI Path |
 | :--- | :--- | :--- | :--- |
-| [**01.01**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/01-iam-security/01-github-oidc-roles.md) | **GitHub Actions OIDC Roles** | Tạo OpenID Connect Provider (`token.actions.githubusercontent.com`), cấu hình Trust Policy theo repo/branch | IAM > Identity providers |
-| [**01.02**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/01-iam-security/02-kms-key.md) | **KMS Customer Managed Key** | Tạo Symmetric CMK `alias/sre-platform-dev-main`, bật Key Rotation, phân tách quyền Administrator & Key User | Key Management Service (KMS) |
-| [**01.03**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/01-iam-security/03-cloudtrail-guardduty.md) | **CloudTrail & GuardDuty** | Tạo Multi-Region CloudTrail lưu vào S3 mã hóa KMS, bật Amazon GuardDuty Runtime Monitoring | CloudTrail & GuardDuty |
-| [**01.04**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/01-iam-security/04-secrets-redaction.md) | **Secrets Prevention & Gitleaks** | Cấu hình `.pre-commit-config.yaml`, rule quét regex phát hiện AWS Key/Token, quy trình thu hồi khẩn cấp | CLI / Git Hooks |
+| [01.01](01-github-oidc-roles.md) | GitHub Actions OIDC | Provider, trust policy, phạm vi repo/branch | IAM > Identity providers |
+| [01.02](02-kms-key.md) | KMS key | Rotation, quyền quản trị và quyền sử dụng | KMS |
+| [01.03](03-cloudtrail-guardduty.md) | Audit & Detection | CloudTrail, S3 log storage, GuardDuty | CloudTrail / GuardDuty |
+| [01.04](04-secrets-redaction.md) | Secret prevention | Gitleaks, Git hooks, thu hồi credential | CLI / Git Hooks |
 
 ---
 

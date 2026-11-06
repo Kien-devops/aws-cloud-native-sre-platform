@@ -1,8 +1,23 @@
 # Platform GitOps
 
+**Thành phần dùng chung, tách khỏi vòng đời phát hành ứng dụng.**
+
+[Trang chủ](../../README.md) / [GitOps](../README.md) / Platform
+
+| Module | Nội dung trong Git | Được Kustomize nạp |
+| --- | --- | --- |
+| [Ingress](ingress/README.md) | Argo CD Ingress | Có |
+| [External Secrets](external-secrets/README.md) | ClusterSecretStore | Có |
+| [Monitoring](monitoring/README.md) | OTel, Loki, Tempo, Grafana, rules | Có |
+| [KEDA](keda/README.md) | CRD và controller manifests | Có |
+| [Karpenter](karpenter/README.md) | NodePool và EC2NodeClass | Có; controller có sẵn |
+| [Argo Rollouts](argo-rollouts/README.md) | CRD và controller manifests | Có |
+| [Chaos Mesh](chaos-mesh/README.md) | Kế hoạch tích hợp | Chưa |
+| [cert-manager](cert-manager/README.md) | Kế hoạch tích hợp | Chưa |
+
 ## Status
 
-`ACTIVE` cho ba nhóm cấu hình: `ingress/`, `external-secrets/` và `monitoring/`. Các thư mục `keda/`, `karpenter/`, `argo-rollouts/`, `chaos-mesh/` và `cert-manager/` là kế hoạch; hiện chưa có manifest triển khai.
+Cấu hình được nạp bởi [kustomization.yaml](kustomization.yaml). Có manifest trong Git không xác nhận controller hoặc workload đang khỏe trên cluster.
 
 `platform-infrastructure` trong `gitops/bootstrap/root-application.yaml` sync trực tiếp thư mục này. Đây không phải App-of-Apps và không tự cài controller Helm.
 
@@ -15,9 +30,9 @@ gitops/platform/
 ├── ingress/              # Active: Ingress rule cho Argo CD
 ├── external-secrets/     # Active: ClusterSecretStore cho AWS Secrets Manager
 ├── monitoring/           # Active: metrics, logs, traces, dashboards, alerting
-├── keda/                 # Planned: event-driven pod autoscaling
-├── karpenter/            # Planned: node provisioning
-├── argo-rollouts/        # Planned: progressive delivery
+├── keda/                 # Controller và CRD cho event-driven autoscaling
+├── karpenter/            # NodePool / EC2NodeClass; controller bên ngoài
+├── argo-rollouts/        # Controller và CRD cho progressive delivery
 ├── chaos-mesh/           # Planned: controlled failure experiments
 └── cert-manager/         # Planned: certificate lifecycle
 ```

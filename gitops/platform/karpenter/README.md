@@ -1,12 +1,22 @@
 # Karpenter
 
+**Cấp node theo nhu cầu Pod, có giới hạn capacity và disruption.**
+
+[GitOps](../../README.md) / [Platform](../README.md) / Karpenter
+
+| Tệp | Cấu hình chính |
+| --- | --- |
+| [nodepool-workload-spot.yaml](nodepool-workload-spot.yaml) | Spot + on-demand, amd64, trần 24 CPU / 48 GiB, disruption budget 20% |
+| [ec2nodeclass.yaml](ec2nodeclass.yaml) | AL2023, discovery tags, node role có sẵn, EBS mã hóa và IMDSv2 |
+| [kustomization.yaml](kustomization.yaml) | Điểm nạp hai node policy |
+
 ## Status
 
-`PLANNED` — chưa có Karpenter controller, `NodePool` hoặc `EC2NodeClass`.
+NodePool và EC2NodeClass được platform Kustomization nạp. Controller, CRD và IAM không được cài trong thư mục này.
 
 ## Purpose
 
-Dự kiến provision node theo pending pods, capacity type và workload constraints.
+Karpenter dùng pending pods, requests và scheduling constraints để chọn capacity. Alias AMI hiện là `al2023@latest`; cần review thay đổi AMI khi vận hành.
 
 ## Repository ownership
 
@@ -30,11 +40,11 @@ Spot tiết kiệm nhưng có interruption; limits, consolidation và budgets c�
 
 ## Enablement
 
-Chỉ thêm NodePool/NodeClass sau capacity test và rollback plan. `NOT_DEPLOYED`.
+Chuẩn bị controller, node role, discovery tags và interruption handling trước khi sync node policy.
 
 ## Validation
 
-Chưa có node policy để kiểm tra. `Measured Result: NOT DEPLOYED`.
+Render cục bộ: `kubectl kustomize gitops/platform/karpenter`. Runtime: kiểm tra NodePool, EC2NodeClass, NodeClaim và Pending events; chưa có phép đo provisioning trong lần chỉnh tài liệu này.
 
 ## Rollback
 

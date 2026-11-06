@@ -1,5 +1,12 @@
 # cert-manager
 
+**Module dự kiến cho vòng đời certificate trong Kubernetes.**
+
+[GitOps](../../README.md) / [Platform](../README.md) / cert-manager
+
+> [!NOTE]
+> Thư mục hiện chỉ có tài liệu, chưa được platform Kustomization nạp. Ingress hiện dùng chứng chỉ ACM được tham chiếu qua annotation.
+
 ## Status
 
 `PLANNED` — chưa cài cert-manager controller/CRD, `Issuer` hoặc `Certificate`.

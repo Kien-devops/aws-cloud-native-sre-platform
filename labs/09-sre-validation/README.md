@@ -1,5 +1,9 @@
 # Module 09: SRE Validation, Resilience & Go-Live Gate
 
+**Đánh giá readiness từ hành vi người dùng và dữ liệu đo được.**
+
+[Labs](../README.md) / Module 09 · [Trước: Delivery & Scaling](../08-delivery-scaling/README.md) · [Tiếp: Handoff](../10-handoff-cleanup/README.md)
+
 ## 1. Tổng quan Module
 
 Module 09 là bài kiểm định toàn diện và nghiêm ngặt nhất về độ tin cậy và khả năng vận hành thực tế của nền tảng (**Site Reliability Engineering Validation & Operational Readiness Review**):
@@ -17,13 +21,13 @@ Module 09 là bài kiểm định toàn diện và nghiêm ngặt nhất về đ
 
 | Bài Lab | Tiêu đề | Trọng tâm kỹ thuật | Console / CLI Path |
 | :--- | :--- | :--- | :--- |
-| [**09.01**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/09-sre-validation/01-platform-smoke.md) | **Platform End-to-End Smoke Test** | Script `platform-smoke-test.sh` kiểm thử toàn bộ hành trình người dùng từ API -> SQS -> DB | CLI + cURL |
-| [**09.02**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/09-sre-validation/02-sli-slo-error-budget.md) | **Toán học SLI/SLO & Error Budget Policy**| Công thức toán học đo lường SLI, quy tắc Burn Rate Alerts, chính sách Release Freeze | Prometheus / Grafana |
-| [**09.03**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/09-sre-validation/03-k6-baseline.md) | **k6 Load Test Baseline Scorecard** | Kịch bản k6 5 giai đoạn, đo đạc RPS, Latency p95/p99, Error Rate và lập bảng điểm SRE | `performance/k6/` |
-| [**09.04**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/09-sre-validation/04-resilience-test.md) | **Resilience & Fallback Testing** | Kiểm thử PDB khi xóa pod liên tục; giả lập Redis sập và kiểm tra fallback sang Postgres | `kubectl` + Redis CLI |
-| [**09.05**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/09-sre-validation/05-chaos-gameday.md) | **Chaos GameDay: Worker Node Outage** | Bắn hạ EC2 Worker Node tại 1a; Karpenter tự phục hồi trong 55s; viết báo cáo GameDay | EC2 Console + AWS CLI |
-| [**09.06**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/09-sre-validation/06-incident-runbook.md) | **Incident Triage & Postmortem** | Ma trận mức độ nghiêm trọng (P1-P4), Runbook xử lý sự cố trực ban, mẫu Postmortem | Runbooks / Alertmanager |
-| [**09.07**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/09-sre-validation/07-go-live-gate.md) | **Go-Live Gate Sign-Off (ORR)** | Rà soát 7 trụ cột Operational Readiness Review, ký biên bản bàn giao phát hành | Tài liệu nghiệm thu ORR |
+| [09.01](01-platform-smoke.md) | Platform Smoke | Xác nhận API và dependency | CLI / API |
+| [09.02](02-sli-slo-error-budget.md) | SLI, SLO & Budget | Công thức, burn rate và release policy | Prometheus / Grafana |
+| [09.03](03-k6-baseline.md) | k6 Baseline | RPS, p95/p99, error ratio | `performance/k6/` |
+| [09.04](04-resilience-test.md) | Resilience | Pod failure, cache fallback, idempotency | Kubernetes / database |
+| [09.05](05-chaos-gameday.md) | Chaos GameDay | Node outage và recovery timeline | EC2 / Kubernetes |
+| [09.06](06-incident-runbook.md) | Incident Response | Severity, triage và postmortem | Runbooks / Alertmanager |
+| [09.07](07-go-live-gate.md) | Go-Live Gate | Đánh giá readiness và người phê duyệt | Evidence / review |
 
 ---
 

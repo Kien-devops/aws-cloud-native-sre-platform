@@ -1,5 +1,9 @@
 # Module 00: Chuẩn bị môi trường & Nguyên tắc SRE
 
+**Chốt tài khoản, ngân sách và cách lưu bằng chứng trước khi dựng hạ tầng.**
+
+[Trang chủ](../../README.md) / [Labs](../README.md) / Module 00 · [Tiếp: IAM](../01-iam-security/README.md)
+
 ## 1. Tổng quan Module
 
 Module 00 thiết lập nền tảng quản trị tài khoản, định danh khu vực vận hành, quy ước đặt tên & gắn thẻ (Naming & Tagging Standards), kiểm soát ngân sách đám mây (AWS Budgets), và quy tắc bảo vệ bằng chứng (Evidence Management & Redaction Invariant) trước khi khởi tạo bất kỳ tài nguyên điện toán nào.
@@ -10,9 +14,9 @@ Module 00 thiết lập nền tảng quản trị tài khoản, định danh khu
 
 | Bài Lab | Tiêu đề | Trọng tâm kỹ thuật | Console / CLI Path |
 | :--- | :--- | :--- | :--- |
-| [**00.01**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/00-chuan-bi/01-account-region-identity.md) | **Tài khoản, Region & Identity** | Khóa Root Account MFA, cô lập Region `ap-southeast-1`, kiểm tra Service Quotas đa AZ | AWS Console > IAM / Service Quotas |
-| [**00.02**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/00-chuan-bi/02-naming-tagging-budget.md) | **Naming, Tagging & AWS Budget** | Chuẩn hóa tiền tố `sre-platform-dev-*`, cấu hình AWS Budgets $50/tháng (50%, 80%, 100%) | AWS Billing > Budgets |
-| [**00.03**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/00-chuan-bi/03-evidence-approval.md) | **Evidence & Redaction Invariant** | Quy chuẩn thu thập nhật ký CloudTrail, che giấu 100% Account ID, private tokens, keys | CloudTrail > Event history |
+| [00.01](01-account-region-identity.md) | Tài khoản, Region & Identity | MFA, danh tính quản trị, Service Quotas | IAM / Service Quotas |
+| [00.02](02-naming-tagging-budget.md) | Naming, Tagging & Budget | Tên tài nguyên, tags, ngưỡng cảnh báo chi phí | Billing > Budgets |
+| [00.03](03-evidence-approval.md) | Evidence & Approval | Bằng chứng, redaction, phạm vi thao tác | CloudTrail > Event history |
 
 ---
 

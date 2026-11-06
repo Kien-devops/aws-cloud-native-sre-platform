@@ -1,5 +1,19 @@
 # Chaos Engineering & Fault Injection Experiments
 
+**Kiểm chứng một giả thuyết phục hồi bằng một fault có giới hạn.**
+
+[Trang chủ](../README.md) / Chaos · [SRE](../sre/README.md) · [Validation labs](../labs/09-sre-validation/README.md)
+
+| Đọc theo thứ tự | Mục đích |
+| --- | --- |
+| [Resilience testing](../labs/09-sre-validation/04-resilience-test.md) | Kiểm tra Pod, cache và message correctness |
+| [Chaos GameDay](../labs/09-sre-validation/05-chaos-gameday.md) | Giả thuyết, fault scope và timeline |
+| [Canary incident drill](../sre/incidents/drill-canary-abort.md) | Hồ sơ abort và rollback |
+| [Postmortem template](../sre/postmortems/template.md) | Ghi impact, nguyên nhân và action owner |
+
+> [!NOTE]
+> Thư mục hiện lưu README; các thư mục `experiments/`, `gamedays/` trong sơ đồ bên dưới là cấu trúc dự kiến. PDB giới hạn voluntary eviction, không ngăn node failure hoặc lệnh xóa Pod trực tiếp. Số liệu diễn tập cần được đọc cùng revision và bằng chứng gốc.
+
 Thư mục này chứa các kịch bản diễn tập phá vỡ có chủ đích (**Controlled Chaos Engineering Experiments**) nhằm kiểm chứng các giả thuyết về độ tin cậy của **AWS Cloud-Native SRE Platform** trong điều kiện môi trường bị suy giảm nghiêm trọng.
 
 ---

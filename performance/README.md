@@ -1,5 +1,29 @@
 # Performance Engineering & In-Cluster Load Testing
 
+**Đo throughput, latency và giới hạn capacity bằng workload có kiểm soát.**
+
+[Trang chủ](../README.md) / Performance · [SRE](../sre/README.md) · [Validation labs](../labs/09-sre-validation/README.md)
+
+## Chọn phép đo
+
+| Profile / công cụ | Mục đích | Mặc định |
+| --- | --- | --- |
+| [Smoke](k6/smoke/smoke.js) | Kết nối và phản hồi API | 1 VU, 30 giây |
+| [Load](k6/load/load.js) | Tải dự kiến | Ramp tới 20 VU |
+| [Stress](k6/stress/stress.js) | Tìm saturation | Ramp tới 60 VU |
+| [Spike](k6/spike/spike.js) | Tăng tải đột ngột | Đỉnh 50 VU |
+| [Soak](k6/soak/soak.js) | Suy giảm theo thời gian | Giữ 10 VU trong 30 phút |
+| [Order journey](k6/sre-load-test.js) | Đọc và tạo order | Luôn có thao tác ghi |
+| [Capacity calculator](capacity-planning/calculate.py) | Replica từ RPS đo được | CLI, không gọi AWS |
+| [Benchmark comparison](benchmarks/compare.py) | So sánh JSON summary | CLI, không phát tải |
+
+> [!IMPORTANT]
+> Profile dùng chung mặc định gọi `/api/v1/products` và `/api/v1/orders`; cần đổi path cho đúng app3. Luồng ghi của các profile này cần `RUN_WRITE_TEST=true`; `sre-load-test.js` luôn ghi dữ liệu. Chỉ phát tải trên môi trường đã được cho phép.
+
+## Đọc kết quả
+
+Gắn kết quả với commit, môi trường, dataset, cache hit ratio và cấu hình máy phát tải. Bảng dưới là hồ sơ benchmark trong repository; không thay thế phép đo lại trên revision hiện tại.
+
 Thư mục này chứa bộ kịch bản kiểm thử hiệu năng chuyên sâu sử dụng **k6** (Distributed Load Testing Engine), được thiết kế để chạy trực tiếp bên trong cụm Amazon EKS nhằm đo lường chính xác các chỉ số độ trễ (Latency Percentiles), thông lượng (Throughput) và kiểm chứng tính toàn vẹn của dữ liệu giao dịch dưới áp lực tải cao.
 
 ---

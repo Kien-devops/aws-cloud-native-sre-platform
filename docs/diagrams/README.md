@@ -1,5 +1,14 @@
 # Architecture Diagrams & Visual Models
 
+**Ba góc nhìn: nền tảng AWS, phát hành GitOps, khả năng phục hồi.**
+
+[Trang chủ](../../README.md) / [Tài liệu](../README.md) / Sơ đồ
+
+![Platform architecture](../images/architecture/platform-architecture-drawio.jpg)
+
+> [!NOTE]
+> Sơ đồ thể hiện thiết kế và hồ sơ tại thời điểm tạo. Nhãn Multi-AZ database, PDB, traffic weight và thời gian phục hồi cần đối chiếu manifest, bằng chứng của revision đang vận hành. Validate sơ đồ chỉ kiểm tra cấu trúc hình vẽ.
+
 Thư mục này chứa toàn bộ các mô hình kiến trúc chuẩn hóa của hệ sinh thái **AWS Cloud-Native SRE Platform**, được xây dựng bằng công cụ `drawio-ai-kit` với các icon AWS chính thức và cú pháp khai báo hiện đại.
 
 ---

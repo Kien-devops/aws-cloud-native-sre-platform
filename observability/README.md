@@ -1,5 +1,20 @@
 # Modern Full-Stack Telemetry & Observability
 
+**Từ tín hiệu ứng dụng đến dashboard và cảnh báo có hành động.**
+
+[Trang chủ](../README.md) / Observability · [GitOps monitoring](../gitops/platform/monitoring/README.md) · [SRE](../sre/README.md)
+
+| Thành phần | Điểm vào |
+| --- | --- |
+| OTLP collection | [Collector](opentelemetry/collectors/otel-collector.yaml) |
+| Metrics | [Rules](prometheus/rules/platform.yaml) · [ServiceMonitor](prometheus/servicemonitors/otel-collector.yaml) |
+| Notifications | [Alertmanager](alertmanager/alertmanager-config.yaml) |
+| Visualization | [Datasources](grafana/datasources/datasources.yaml) · [Dashboards](grafana/dashboards/) |
+| Logs / traces | [Loki](loki/loki.yaml) · [Tempo](tempo/tempo.yaml) |
+
+> [!NOTE]
+> Đây là bộ cấu hình tham khảo riêng; platform Kustomization nạp `gitops/platform/monitoring/`, không nạp thư mục này. Hai bộ khác phiên bản, storage và metric rules. Ảnh và số liệu bên dưới là hồ sơ đã lưu, không xác nhận trạng thái live.
+
 Thư mục này chứa toàn bộ cấu hình hạ tầng thu thập và phân tích dữ liệu quan sát (**Telemetry Stack**) cho **AWS Cloud-Native SRE Platform**. Nền tảng hợp nhất 3 trụ cột (Metrics, Logs, Traces) theo chuẩn công nghiệp **OpenTelemetry**, phục vụ giám sát độ tin cậy và cảnh báo theo ngân sách lỗi (Error Budget Alerting).
 
 ---

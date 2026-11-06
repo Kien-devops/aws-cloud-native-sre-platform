@@ -1,5 +1,17 @@
 # Bộ tài liệu AWS Cloud-Native SRE Platform
 
+**Hiểu kiến trúc. Theo dõi request. Vận hành bằng bằng chứng.**
+
+[Trang chủ](../README.md) / Tài liệu · [Sơ đồ](diagrams/README.md) · [Labs](../labs/README.md)
+
+| Điểm bắt đầu | Dành cho |
+| --- | --- |
+| [System architecture](architecture/02-system-architecture.md) | Nắm các tầng và dependency |
+| [Request flow](architecture/04-application-request-flow.md) | Theo dõi một giao dịch đầu cuối |
+| [Deployment lifecycle](deployment/06-deployment-lifecycle.md) | Hiểu artifact, promotion và rollback |
+| [Incident management](operations/04-incident-management.md) | Điều tra và khôi phục dịch vụ |
+| [Security architecture](security/01-security-architecture.md) | Review identity, secret và network boundary |
+
 > **Trạng thái:** Tài liệu hiện là scaffold hướng dẫn. Nội dung mô tả kiến trúc mục tiêu, cách triển khai và cách kiểm chứng; không khẳng định hạ tầng đã dựng hoặc production đã đạt SLO. [README dự án](../README.md).
 
 ## Ranh giới kết quả

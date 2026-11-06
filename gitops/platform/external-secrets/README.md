@@ -1,5 +1,19 @@
 # External Secrets
 
+**Đồng bộ bí mật từ AWS Secrets Manager qua một store dùng chung.**
+
+[GitOps](../../README.md) / [Platform](../README.md) / External Secrets
+
+```text
+AWS Secrets Manager → ESO + Pod Identity → Kubernetes Secret → Pod
+```
+
+| Nguồn | Trách nhiệm |
+| --- | --- |
+| [cluster-secret-store.yaml](cluster-secret-store.yaml) | Provider AWS, region và store name |
+| [Application ExternalSecret](../../applications/reliability-shop/base/external-secret.yaml) | Secret path và các trường consumer |
+| [Grafana ExternalSecret](../monitoring/01-grafana-secret.yaml) | Credentials quản trị Grafana |
+
 ## Status
 
 `ACTIVE` — chỉ quản lý `ClusterSecretStore` configuration. External Secrets Operator (ESO), CRD và Pod Identity không được cài ở đây.

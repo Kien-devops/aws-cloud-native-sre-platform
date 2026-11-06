@@ -1,5 +1,9 @@
 # Module 05 — Secret Management, DNS & Ingress Routing
 
+**Kết nối bí mật runtime với đường vào HTTPS của ứng dụng.**
+
+[Labs](../README.md) / Module 05 · [Trước: EKS](../04-eks-platform/README.md) · [Tiếp: GitOps](../06-gitops-application/README.md)
+
 > **Mục tiêu Module:** Thiết lập toàn diện hạ tầng quản lý bí mật (Secrets Manager), mã hóa bảo mật (KMS CMK), chứng chỉ số SSL/TLS (ACM & Route 53) và hạ tầng mạng Ingress (AWS Load Balancer Controller & ALB) sẵn sàng cho microservices ReliabilityShop.
 
 ---

@@ -1,12 +1,23 @@
 # Argo Rollouts
 
+**Canary deployment và phân tích chất lượng phiên bản order-service.**
+
+[GitOps](../../README.md) / [Platform](../README.md) / Argo Rollouts
+
+| Tệp | Vai trò |
+| --- | --- |
+| [install.yaml](install.yaml) | CRD, RBAC và controller `v1.10.1` |
+| [kustomization.yaml](kustomization.yaml) | Điểm nạp của platform |
+| [Order Rollout](../../applications/reliability-shop/base/order-service-rollout.yaml) | Các bước canary của ứng dụng |
+| [AnalysisTemplate](../../applications/reliability-shop/base/order-service-analysis-template.yaml) | Gate lỗi HTTP và p95 |
+
 ## Status
 
-`PLANNED` — chưa cài Rollouts controller/CRD và chưa có `Rollout` hay `AnalysisTemplate`.
+Manifest controller được platform Kustomization nạp. Workload có `Rollout` và `AnalysisTemplate`; runtime cần kiểm chứng trên cluster.
 
 ## Purpose
 
-Dự kiến progressive delivery canary/blue-green cho workload có metric gate và rollback tự động.
+Order canary đi qua weight 20%, 50% rồi hoàn tất. Chưa có `trafficRouting`; tỷ lệ dựa trên replica, không phải điều phối chính xác request tại ALB.
 
 ## Repository ownership
 
@@ -18,7 +29,7 @@ Controller/CRD, metrics provider, service routing, promotion policy, pause/abort
 
 ## AWS/EKS integration
 
-Có thể dùng CloudWatch/Prometheus metrics; chưa có provider hoặc IAM contract trong repo.
+AnalysisTemplate gọi Prometheus nội bộ. Query cần được đối chiếu với metric labels và revision; fallback khi thiếu dữ liệu có thể khiến analysis báo đạt.
 
 ## Security/IAM
 
@@ -30,11 +41,11 @@ Canary tăng temporary capacity và complexity. Theo dõi error rate, latency, a
 
 ## Enablement
 
-Triển khai controller trước, thử một workload non-critical, rồi mới thêm Rollout manifests. `NOT_DEPLOYED`.
+Controller và CRD phải sẵn sàng trước khi sync workload. Xác nhận metric thực, pause/abort và rollback trên môi trường thử nghiệm trước khi dùng gate phát hành.
 
 ## Validation
 
-Chưa có rollout runtime. `Measured Result: NOT DEPLOYED`.
+Render cục bộ: `kubectl kustomize gitops/platform/argo-rollouts`. Runtime: kiểm tra Rollout, AnalysisRun và phản hồi API theo từng revision.
 
 ## Rollback
 

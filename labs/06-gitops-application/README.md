@@ -1,5 +1,9 @@
 # Module 06: GitOps Delivery & Ứng dụng mẫu ReliabilityShop
 
+**Từ manifest được review đến workload được reconcile bởi Argo CD.**
+
+[Labs](../README.md) / Module 06 · [Trước: Secrets & Ingress](../05-secrets-ingress/README.md) · [Tiếp: Observability](../07-observability/README.md)
+
 ## 1. Tổng quan Module
 
 Module 06 thiết lập động cơ phân phối phần mềm liên tục (**Continuous Delivery Engine**) dựa trên mô hình **GitOps với Argo CD v2.11+**, đồng thời triển khai toàn bộ ứng dụng thương mại điện tử microservices mẫu **ReliabilityShop**:
@@ -15,12 +19,12 @@ Module 06 thiết lập động cơ phân phối phần mềm liên tục (**Con
 
 | Bài Lab | Tiêu đề | Trọng tâm kỹ thuật | Console / CLI Path |
 | :--- | :--- | :--- | :--- |
-| [**06.01**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/06-gitops-application/01-argocd-bootstrap.md) | **Argo CD Bootstrap & Secrets** | Cài đặt Argo CD, xóa admin secret mặc định, đồng bộ mật khẩu qua Secrets Manager | Argo CD UI + kubectl |
-| [**06.02**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/06-gitops-application/02-projects-environments.md) | **AppProjects & RBAC Isolation** | Tạo project `platform` và `reliability-shop`, áp dụng chính sách whitelist tài nguyên | Argo CD Settings > Projects |
-| [**06.03**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/06-gitops-application/03-platform-applications.md) | **Platform Applications (App-of-Apps)**| Định nghĩa root app quản lý LBC, ESO, OTel, Prometheus, Loki, Tempo | `gitops/bootstrap/` |
-| [**06.04**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/06-gitops-application/04-reliabilityshop-base.md) | **Kustomize Base Manifests** | Xây dựng base cho `order-service` và `payment-worker` với Pod Anti-Affinity và Probes | `gitops/apps/workloads/base` |
-| [**06.05**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/06-gitops-application/05-environment-overlays.md) | **Environment Overlays (Dev)** | Cấu hình dev overlay với Ingress annotations cho ALB, tiêm endpoint RDS/Redis thật | `gitops/apps/workloads/overlays/dev` |
-| [**06.06**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/06-gitops-application/06-first-sync-smoke.md) | **First Sync & E2E Smoke Test** | Đồng bộ ứng dụng lần đầu, kiểm tra sức khỏe pods và tạo thử 1 đơn hàng qua REST API | Argo CD UI + cURL |
+| [06.01](01-argocd-bootstrap.md) | Argo CD Bootstrap | Cài đặt và credential quản trị | Argo CD / kubectl |
+| [06.02](02-projects-environments.md) | AppProjects & RBAC | Ranh giới platform và application | Argo CD > Projects |
+| [06.03](03-platform-applications.md) | Platform Applications | Dependency và sync boundary | `gitops/bootstrap/` |
+| [06.04](04-reliabilityshop-base.md) | Kustomize Base | Workload, Services và probes | `gitops/applications/reliability-shop/base/` |
+| [06.05](05-environment-overlays.md) | Environment Overlays | Namespace, endpoints và image digest | `gitops/applications/reliability-shop/envs/` |
+| [06.06](06-first-sync-smoke.md) | First Sync & Smoke | Kiểm tra health và hành trình order | Argo CD / API |
 
 ---
 

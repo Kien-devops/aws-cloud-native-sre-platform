@@ -1,5 +1,9 @@
 # Module 04 — Nền tảng Amazon Elastic Kubernetes Service (EKS Platform)
 
+**Control plane, compute và workload identity trước khi triển khai ứng dụng.**
+
+[Labs](../README.md) / Module 04 · [Trước: Foundation](../03-foundation-services/README.md) · [Tiếp: Secrets & Ingress](../05-secrets-ingress/README.md)
+
 > **Mục tiêu Module:** Xây dựng nền tảng tính toán đám mây Kubernetes tiêu chuẩn doanh nghiệp (Enterprise-grade EKS Platform) trên AWS: Khởi tạo Control Plane có mã hóa KMS etcd, xây dựng Managed Node Group đa vùng (Multi-AZ), cấu hình Managed Add-ons và triển khai cơ chế phân quyền EKS Pod Identity tiên tiến.
 
 ---

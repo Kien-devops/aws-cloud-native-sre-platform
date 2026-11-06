@@ -1,5 +1,21 @@
 # Site Reliability Engineering (SRE) — Reliability Governance & Chaos Drills
 
+**SLO, incident response và bằng chứng phục hồi trong cùng một nơi.**
+
+[Trang chủ](../README.md) / SRE · [Runbooks](runbooks/README.md) · [Performance](../performance/README.md) · [Chaos](../chaos/README.md)
+
+| Nhu cầu | Điểm vào |
+| --- | --- |
+| Định nghĩa mục tiêu | [Service SLOs](slos/service-slos.yaml) · [Error budget policy](slos/error-budget/policy.md) |
+| Theo dõi burn rate | [Recording & alert rules](alerts/slo-recording-and-alerts.yaml) |
+| Xử lý incident | [Runbooks](runbooks/README.md) · [Incident template](incidents/incident-template.md) |
+| Học sau sự cố | [Postmortem template](postmortems/template.md) |
+| Lập kế hoạch remediation | [Dry-run planner](auto-remediation/pod-restart.py) |
+| Tổng hợp reliability | [Reports](reliability-reports/README.md) |
+
+> [!NOTE]
+> SLO và budget policy hiện ghi trạng thái `proposed`. Remediation script chỉ trả kế hoạch, không restart Pod. Các scorecard và sign-off bên dưới là hồ sơ được lưu, không phải phê duyệt production mới.
+
 Thư mục này là trung tâm chỉ huy kỹ thuật (**SRE Command Center**) của hệ sinh thái **AWS Cloud-Native SRE Platform**. Nơi đây lưu trữ các kịch bản diễn tập sự cố (Chaos GameDay), quy trình vận hành khẩn cấp (On-call Runbooks), báo cáo hậu sự cố không đổ lỗi (Blameless Postmortems), và biên bản nghiệm thu Go-Live chính thức.
 
 ---

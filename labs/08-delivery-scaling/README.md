@@ -1,5 +1,9 @@
 # Module 08: CI/CD Delivery, Autoscaling & Canary Deployment
 
+**Build bất biến, promotion có review, capacity đi theo nhu cầu.**
+
+[Labs](../README.md) / Module 08 · [Trước: Observability](../07-observability/README.md) · [Tiếp: SRE Validation](../09-sre-validation/README.md)
+
 ## 1. Tổng quan Module
 
 Module 08 xây dựng đường ống phân phối ứng dụng tự động hóa hoàn chỉnh và các cơ chế co giãn đàn hồi đa tầng (**Multi-Layer Autoscaling & Progressive Delivery**):
@@ -15,12 +19,12 @@ Module 08 xây dựng đường ống phân phối ứng dụng tự động hó
 
 | Bài Lab | Tiêu đề | Trọng tâm kỹ thuật | Console / CLI Path |
 | :--- | :--- | :--- | :--- |
-| [**08.01**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/08-delivery-scaling/01-ci-build-scan-ecr.md) | **CI Build, Trivy & OIDC ECR** | GitHub Actions build, scan CVE với Trivy, gán tag `sha-xxxx`, đẩy ECR qua OIDC | GitHub Actions + ECR Console |
-| [**08.02**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/08-delivery-scaling/02-gitops-promotion.md) | **GitOps Environment Promotion** | Quản lý overlays, quy trình PR thăng cấp phiên bản, chốt chặn Manual Sync ở Prod | Argo CD UI + GitHub PR |
-| [**08.03**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/08-delivery-scaling/03-hpa-keda.md) | **HPA & KEDA SQS Autoscaling** | HPA co giãn `order-service` theo tải CPU; KEDA co giãn `payment-worker` theo hàng đợi SQS | `kubectl` + AWS SQS Console |
-| [**08.04**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/08-delivery-scaling/04-karpenter.md) | **Karpenter v1.0 Node Autoscaling** | Triển khai `EC2NodeClass` và `NodePool`, thử nghiệm co giãn node cấp tốc và hợp nhất node | EC2 Console + Karpenter Logs |
-| [**08.05**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/08-delivery-scaling/05-argo-rollouts-canary.md) | **Argo Rollouts Canary & Analysis** | Canary 5% -> 20% -> 50% -> 100%, tích hợp PromQL phân tích lỗi thời gian thực | Argo Rollouts Dashboard |
-| [**08.06**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/08-delivery-scaling/06-rollback.md) | **Automated Rollback on Metric Spike** | Giả lập phát hành phiên bản lỗi `v2.0-bad`, kiểm chứng tự động hủy phát hành trong 60s | Prometheus + Rollouts UI |
+| [08.01](01-ci-build-scan-ecr.md) | CI Build & Scan | Tests, Trivy, ECR và OIDC | GitHub Actions / ECR |
+| [08.02](02-gitops-promotion.md) | GitOps Promotion | PR, overlays và manual sync prod | GitHub / Argo CD |
+| [08.03](03-hpa-keda.md) | HPA & KEDA | CPU scaling và SQS backlog | Kubernetes / SQS |
+| [08.04](04-karpenter.md) | Karpenter | NodePool, NodeClass và consolidation | EC2 / controller logs |
+| [08.05](05-argo-rollouts-canary.md) | Canary & Analysis | Weight, pause và Prometheus gate | Argo Rollouts |
+| [08.06](06-rollback.md) | Rollback | Abort và khôi phục desired state | Git / Rollouts |
 
 ---
 

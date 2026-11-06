@@ -1,5 +1,9 @@
 # Module 07: SRE Observability & Tri-Signal Telemetry
 
+**Theo dõi một giao dịch bằng metrics, logs và traces liên quan.**
+
+[Labs](../README.md) / Module 07 · [Trước: GitOps](../06-gitops-application/README.md) · [Tiếp: Delivery & Scaling](../08-delivery-scaling/README.md)
+
 ## 1. Tổng quan Module
 
 Module 07 xây dựng hệ thống quan sát hiện đại (Observability Stack) tích hợp 3 trụ cột tín hiệu đo lường (**Metrics, Logs, Traces - Tri-Signal Telemetry**) theo tiêu chuẩn OpenTelemetry và Google SRE:
@@ -15,12 +19,12 @@ Module 07 xây dựng hệ thống quan sát hiện đại (Observability Stack)
 
 | Bài Lab | Tiêu đề | Trọng tâm kỹ thuật | Console / CLI Path |
 | :--- | :--- | :--- | :--- |
-| [**07.01**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/07-observability/01-otel-collectors.md) | **OpenTelemetry Collectors** | Cấu hình pipelines (receivers, processors: memory limiter/redact, exporters) | `gitops/apps/platform/otel/` |
-| [**07.02**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/07-observability/02-prometheus-alertmanager.md) | **Prometheus & Multi-Burn-Rate Alerts**| Định nghĩa ServiceMonitors, quy tắc cảnh báo tốc độ đốt ngân sách lỗi đa cửa sổ thời gian | Prometheus & Alertmanager UI |
-| [**07.03**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/07-observability/03-loki-tempo.md) | **Grafana Loki & Tempo** | Triển khai Loki và Tempo, cấu hình tích hợp TraceQL và LogQL liên kết qua Trace ID | `gitops/apps/platform/loki-tempo/` |
-| [**07.04**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/07-observability/04-grafana-dashboards.md) | **Dashboards as Code (DaC)** | Tự động import ConfigMap Dashboard: RED metrics, USE metrics và SLO Error Budget Gauge | Grafana UI + Git |
-| [**07.05**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/07-observability/05-observability-checkpoint.md) | **Tri-Signal Correlation Drill** | Diễn tập truy vết 1 lỗi HTTP 500: Từ Grafana Panel -> Tempo Trace -> Loki Log -> Root cause | Grafana Explore |
-| [**07.06**](file:///e:/repo/aws-cloud-native-sre-platform/aws-cloud-native-sre-platform/labs/07-observability/06-console-observability.md) | **Console Observability: Alarms & DLQ Runbook** | CloudWatch Alarms (DLQ > 0, Oldest Age > 300s), CloudWatch Dashboard, SRE DLQ Replay Runbook | CloudWatch Console |
+| [07.01](01-otel-collectors.md) | OpenTelemetry | Receivers, processors, exporters | `gitops/platform/monitoring/` |
+| [07.02](02-prometheus-alertmanager.md) | Prometheus & Alertmanager | Scrape, rules và burn rate | Prometheus / Alertmanager |
+| [07.03](03-loki-tempo.md) | Loki & Tempo | LogQL, TraceQL và correlation | `gitops/platform/monitoring/` |
+| [07.04](04-grafana-dashboards.md) | Dashboards as Code | Golden Signals và budget | Grafana / Git |
+| [07.05](05-observability-checkpoint.md) | Correlation Drill | Metric, trace, log và root cause | Grafana Explore |
+| [07.06](06-console-observability.md) | AWS telemetry | Alarms, DLQ và replay runbook | CloudWatch |
 
 ---
 
