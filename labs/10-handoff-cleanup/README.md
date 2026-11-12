@@ -1,69 +1,18 @@
-# Module 10: Handoff, State Reconciliation & Reverse Cleanup
+# Module 10 — Handoff, Drift Reconciliation & FinOps Cleanup
 
-**Bàn giao ownership, kiểm tra restore và kết thúc vòng đời tài nguyên.**
+> **Phạm vi:** Resource Inventory, GitOps Governance, DR Rebuild & Reverse Teardown ($0.00) | **Region:** `ap-southeast-1`
 
-[Labs](../README.md) / Module 10 · [Trước: SRE Validation](../09-sre-validation/README.md) · [Về trang chủ](../../README.md)
-
-## 1. Tổng quan Module
-
-Module 10 là chặng về đích của dự án **AWS Cloud-Native SRE Platform**. Sau khi toàn bộ nền tảng và ứng dụng thương mại điện tử mẫu `ReliabilityShop` đã trải qua các bài kiểm định tải (k6), khả năng tự phục hồi (Chaos GameDay), giám sát SLO (Error Budget Burn Rate) và đạt quyết định Go-Live ở Module 09, Module 10 sẽ thực hiện quy trình kỹ thuật chuyển giao:
-1. **Kiểm kê tài sản & Định danh quyền sở hữu (Resource Inventory & Ownership Cataloging)**.
-2. **Giám sát và tự động hòa giải trôi lệch cấu hình (GitOps Drift Detection & Reconciliation)**.
-3. **Phân định ranh giới sở hữu giữa IaC và GitOps (Separation of Concerns & Drift Management)**.
-4. **Diễn tập phục hồi thảm họa từ con số không (Cold Rebuild & Restore Drill)**.
-5. **Dọn dẹp môi trường thử nghiệm theo thứ tự phụ thuộc ngược (Reverse Dependency Teardown Order)**.
-6. **Kiểm toán chi phí, xác nhận trạng thái $0.00 và bàn giao vận hành (Cost Audit & Production Handoff)**.
+Module 10 đặc tả danh mục tài nguyên hoàn chỉnh của toàn nền tảng, cơ chế chống trôi cấu hình (Anti-Drift), quy trình tái tạo hạ tầng và thứ tự xóa ngược đảm bảo chi phí `$0.00/ngày` khi kết thúc môi trường lab.
 
 ---
 
-## 2. Kiến trúc luồng thực hiện (Module Flow Diagram)
+## Danh sách Đặc tả
 
-```
-+---------------------------------------------------------------------------------------------------------+
-|                                  MODULE 10: EXECUTION ARCHITECTURE                                      |
-+---------------------------------------------------------------------------------------------------------+
-|                                                                                                         |
-|   10.01 Resource Inventory         ===>     10.02 GitOps Drift Reconciliation                           |
-|   - Quét Tag Editor & Resources            - Cấu hình selfHeal: true / prune: true                      |
-|   - Phát hiện tài nguyên mồ côi            - Loại trừ dynamic controller resources                      |
-|   - Gắn tag chuẩn hóa 5 trường             - Reconcile đạt 100% Synced & Healthy                        |
-|                 |                                          |                                            |
-|                 v                                          v                                            |
-|   10.03 GitOps Ownership           ===>     10.04 Rebuild & DR Restore                                  |
-|   - Phân định Console vs GitOps            - Thử nghiệm phục hồi từ Git & Console                       |
-|   - Bật Argo CD selfHeal/prune             - Phục hồi RDS snapshot & invariants                         |
-|   - Không chỉnh sửa thủ công               - Đo đạc thực tế RTO (<35m) và RPO (<5m)                     |
-|                 |                                          |                                            |
-|                 v                                          v                                            |
-|   10.05 Reverse Cleanup Order      ===>     10.06 Cost Audit & Handoff                                  |
-|   - Ingress -> Apps -> Nodes               - Phân tích AWS Cost Explorer                                |
-|   - EKS -> RDS/Redis -> VPC                - Kích hoạt Cost Anomaly Detection                           |
-|   - Săn lùng orphan ENI/EIP/EBS            - Xác nhận $0.00 và ký bàn giao                              |
-|                                                                                                         |
-+---------------------------------------------------------------------------------------------------------+
-```
-
----
-
-## 3. Danh mục các bài Lab chi tiết
-
-| Mã bài Lab | Tiêu đề | Trọng tâm kỹ thuật | Console / CLI Path |
-| :--- | :--- | :--- | :--- |
-| [10.01](01-resource-inventory.md) | Resource Inventory | Tags, ownership và tài nguyên còn sót | Resource Groups |
-| [10.02](02-gitops-drift-reconciliation.md) | Drift Reconciliation | So sánh desired state và runtime | Argo CD / Git |
-| [10.03](03-gitops-ownership.md) | Ownership Boundaries | Phân định AWS và Kubernetes | GitOps / IaC |
-| [10.04](04-rebuild-restore.md) | Rebuild & Restore | RTO, RPO và tính toàn vẹn dữ liệu | AWS / GitOps |
-| [10.05](05-cleanup-order.md) | Cleanup Order | Dependency ngược và kiểm tra orphan | AWS Console |
-| [10.06](06-cost-audit.md) | Cost Audit & Handoff | Chi phí còn lại và biên bản bàn giao | Cost Explorer |
-
----
-
-## 4. Tiêu chí nghiệm thu hoàn thành Module 10 (Exit Gate)
-
-Trước khi đóng lại dự án, toàn bộ các tiêu chí sau phải được đánh dấu hoàn tất:
-
-- [x] **Inventory Verified:** Toàn bộ tài nguyên hạ tầng được đối chiếu và khớp 100% với file thiết kế.
-- [x] **IaC & GitOps Parity:** Ranh giới giữa Terraform và GitOps được thiết lập chặt chẽ, Argo CD selfHeal tự phục hồi trong 10s.
-- [x] **DR Verified:** Khả năng phục hồi hệ thống đạt RTO < 35 phút và RPO < 5 phút với dữ liệu nguyên vẹn.
-- [x] **Reverse Cleanup Ready:** Quy trình dọn dẹp theo thứ tự phụ thuộc ngược và script săn lùng leak chi phí được chuẩn hóa.
-- [x] **Handoff Signed:** Biên bản bàn giao kỹ thuật được đại diện Platform Engineering và Operations hoàn thiện.
+| Mã | Tài liệu | Nội dung Chính |
+| :--- | :--- | :--- |
+| `10.01` | [Resource Inventory](01-resource-inventory.md) | Danh mục đầy đủ toàn bộ tài nguyên AWS & Kubernetes đã triển khai |
+| `10.02` | [GitOps Drift Reconciliation](02-gitops-drift-reconciliation.md) | Cơ chế Argo CD `selfHeal: true` (10s) & `ignoreDifferences` |
+| `10.03` | [GitOps Ownership Matrix](03-gitops-ownership.md) | Ranh giới quản lý giữa Terraform (`iac/`) và Argo CD (`gitops/`) |
+| `10.04` | [Rebuild & DR Restore](04-rebuild-restore.md) | Tái dựng hạ tầng từ `iac/` + `gitops/` và khôi phục RDS Snapshot |
+| `10.05` | [Reverse Cleanup Order](05-cleanup-order.md) | Thứ tự xóa ngược không dính `DependencyViolation` |
+| `10.06` | [FinOps Cost Audit ($0.00)](06-cost-audit.md) | Quét tài nguyên mồ côi (Orphan EIP, EBS, ALB, NAT, RDS, EKS) |
